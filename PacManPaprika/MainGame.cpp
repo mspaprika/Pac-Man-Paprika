@@ -1,19 +1,16 @@
 #define PLAY_IMPLEMENTATION
 #define PLAY_USING_GAMEOBJECT_MANAGER
+
 #include "Play.h"
+#include "MainGame.h"
 
-constexpr int DISPLAY_WIDTH = 1280;
-constexpr int DISPLAY_HEIGHT = 720;
-constexpr int DISPLAY_SCALE = 1;
 
-void Draw();
 
 // The entry point for a PlayBuffer program
 void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 {
 	Play::CreateManager( DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_SCALE );
 	Play::CentreAllSpriteOrigins();
-	Play::LoadBackground("Data//Backgrounds//background.png");	
 }
 
 // Called by PlayBuffer every frame (60 times a second!)
@@ -34,8 +31,20 @@ int MainGameExit( void )
 
 void Draw()
 {
-	Play::ClearDrawingBuffer(Play::cWhite);
-	Play::DrawBackground();
+	Play::ClearDrawingBuffer(Play::cBlack);
+
+	Play::DrawSprite(SPR_BACKGROUND, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 1);
+
+
+	for (int i = 0; i < 28; i++)
+	{
+		for (int j = 0; j < 31; j++)
+		{
+			Point2D tilePos = { 370 + i * TILE_SIZE, 70 + j * TILE_SIZE };
+			Play::DrawRect({ tilePos.x - TILE_SIZE / 2, tilePos.y - TILE_SIZE / 2 }, { tilePos.x + TILE_SIZE / 2, tilePos.y + TILE_SIZE / 2 }, Play::cWhite);
+		}
+	}
+
 	Play::PresentDrawingBuffer();
 }
 
