@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Play.h"
+
 constexpr int DISPLAY_WIDTH = 1280;
 constexpr int DISPLAY_HEIGHT = 720;
 constexpr int DISPLAY_SCALE = 1;
@@ -8,11 +10,11 @@ constexpr int DISPLAY_SCALE = 1;
 const char* SPR_BACKGROUND = "back";
 
 const char* SPR_PACMAN = "spr_pacman";
-const char* SPR_BLINKY = "spr_ghost_blinky";
-const char* SPR_PINKY = "spr_ghost_pinky";
-const char* SPR_INKY = "spr_ghost_inky";
-const char* SPR_CLYDE = "spr_ghost_clyde";
-const char* SPR_VULNERABLE = "spr_ghost_vulnerable";
+const char* SPR_BLINKY = "ghost_blinky";
+const char* SPR_PINKY = "ghost_pinky";
+const char* SPR_INKY = "ghost_inky";
+const char* SPR_CLYDE = "ghost_clyde";
+const char* SPR_VULNERABLE = "ghost_vulnerable";
 
 const char* SPR_DOT = "dot";
 const char* SPR_POWER = "spr_power";
@@ -20,6 +22,9 @@ const char* SPR_POWER = "spr_power";
 const char* SPR_CARROT = "carrot";
 const char* SPR_CHERRY = "cherry";
 const char* SPR_APPLE = "apple";
+const char* SPR_PEPPER = "pepper";
+const char* SPR_PAPRIKA = "paprika";
+
 
 // Pacman
 const int PACMAN_SPAWN_POS = { 658 };
@@ -30,6 +35,19 @@ const float PACMAN_SPEED = { 1.5f };
 const Vector2f PACMAN_VELOCITY_X = { PACMAN_SPEED, 0.0f };
 const Vector2f PACMAN_VELOCITY_Y = { 0.0f, PACMAN_SPEED };
 
+// Ghosts
+const int GHOST_RESPAWN_POS = { 391 };
+const int INKY_SPAWN_POS = { 407 };
+const int CLYDE_SPAWN_POS = { 405 };
+const int PINKY_SPAWN_POS = { 403 };
+const int BLINKY_SPAWN_POS = { 377 };
+
+const float GHOST_SPEED = { 1.5f };
+const Vector2f GHOST_VELOCITY_X = { GHOST_SPEED, 0.0f };
+const Vector2f GHOST_VELOCITY_Y = { 0.0f, GHOST_SPEED };
+
+const int GHOST_EXIT_POS = { 321 };
+
 // Board
 const int TILE_SIZE = 20;
 const int BOARD_OFFSET_X = 370;
@@ -39,7 +57,6 @@ const Vector2D BOARD_SIZE = { 28, 31 };
 
 const int BOARD_LIM_LEFT = BOARD_OFFSET_X;
 const int BOARD_LIM_RIGHT = BOARD_OFFSET_X + ( BOARD_SIZE.x * TILE_SIZE );
-
 
 
 int BOARD[31][28] =
@@ -90,6 +107,7 @@ struct Tile
 	Point2D pos;
 	TileType type;
 	bool occupied = false;
+	bool ghostOccupied = false;
 };
 
 enum GameFlow
@@ -127,6 +145,15 @@ enum GhostType
 	GHOST_CLYDE,
 };
 
+enum GhostState
+{
+	GHOST_IDLE,
+	GHOST_CHASE,
+	GHOST_SCATTER,
+	GHOST_FRIGHTENED,
+	GHOST_DEAD,
+};
+
 enum Direction
 {
 	DIR_UP,
@@ -142,6 +169,21 @@ struct GameState
 	bool vulnerable{ false };
 	GameFlow state = STATE_IDLE;
 	PacmanState pState = PAC_IDLE;
+};
+
+struct Ghost
+{
+	GhostState state = GHOST_IDLE;
+	GhostType type;
+
+	Direction dir;
+	Direction nextDir;
+
+	int id;
+	int currentTile;
+	int nextTile;
+	int targetTile;
+	bool activated{ false };
 };
 
 struct Pacman
@@ -170,3 +212,16 @@ void SweepNextTile(int id, int oldID);
 void DrawGameStats();
 
 void PacmanTargetReached(GameObject& objPacman);
+void UpdateGhosts();
+void GhostAI(Ghost& ghost);
+void SetChaseTarget(Ghost& ghost);
+void SetScatterTarget(Ghost& ghost);
+bool IsGhostTargetReached(Ghost& ghost);
+void SetGhostDirection(Ghost& ghost);
+void SetGhostNextTile(Ghost& ghost);
+void GhostMovement(Ghost& ghost);
+
+void GhostNextTileReached(Ghost& ghost);
+void ExitGhostHouse(Ghost& ghost);
+void ActivateGhost(float time);
+void GhostSettled(Ghost& ghost);
