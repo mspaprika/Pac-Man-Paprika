@@ -17,7 +17,7 @@ const char* SPR_CLYDE = "ghost_clyde";
 const char* SPR_VULNERABLE = "ghost_vulnerable";
 
 const char* SPR_DOT = "dot";
-const char* SPR_POWER = "spr_power";
+const char* SPR_POWER = "power";
 
 const char* SPR_CARROT = "carrot";
 const char* SPR_CHERRY = "cherry";
@@ -37,10 +37,10 @@ const Vector2f PACMAN_VELOCITY_Y = { 0.0f, PACMAN_SPEED };
 
 // Ghosts
 const int GHOST_RESPAWN_POS = { 391 };
-const int INKY_SPAWN_POS = { 407 };
-const int CLYDE_SPAWN_POS = { 405 };
-const int PINKY_SPAWN_POS = { 403 };
-const int BLINKY_SPAWN_POS = { 377 };
+const int INKY_SPAWN_POS = { 403 };
+const int CLYDE_SPAWN_POS = { 407 };
+const int PINKY_SPAWN_POS = { 405 };
+const int BLINKY_SPAWN_POS = { 321 };
 
 const float GHOST_SPEED = { 1.5f };
 const Vector2f GHOST_VELOCITY_X = { GHOST_SPEED, 0.0f };
@@ -48,6 +48,9 @@ const Vector2f GHOST_VELOCITY_Y = { 0.0f, GHOST_SPEED };
 
 const int GHOST_EXIT_POS = { 321 };
 const int BLINKY_SCATTER_POS = { 1 };
+const int PINKY_SCATTER_POS = { 28 };
+const int INKY_SCATTER_POS = { 840 };
+const int CLYDE_SCATTER_POS = { 867 };
 
 // Board
 const int TILE_SIZE = 20;
@@ -65,7 +68,7 @@ int BOARD[31][28] =
 	{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
-	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
+	{ 1, 4, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 4, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
 	{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
@@ -85,7 +88,7 @@ int BOARD[31][28] =
 	{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
-	{ 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1 },
+	{ 1, 4, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 4, 1 },
 	{ 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1 },
 	{ 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1 },
 	{ 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1 },
@@ -136,6 +139,8 @@ enum GameObjectType
 	TYPE_GHOST,
 	TYPE_DOT,
 	TYPE_POWER,
+	TYPE_DESTROYED,
+	TYPE_FRUIT,
 };
 
 enum GhostType
@@ -203,13 +208,17 @@ struct Pacman
 // Functions' declarations
 void UpdateGameStates();
 void Draw();
+void DrawGameObjects(int TYPE);
 void CreateTiles();
 void CreateGameObjects();
 float GetDistance(Point2D pos1, Point2D pos2);
+void ReverseDirection(Ghost& ghost);
 
 void UpdatePacman();
 void UpdateDots();
+void UpdatePower();
 void PacmanMainControlls();
+void UpdateDestroyed();
 
 void SweepNextTile(int id, int oldID);
 void DrawGameStats();
@@ -228,3 +237,4 @@ void GhostNextTileReached(Ghost& ghost);
 void ExitGhostHouse(Ghost& ghost);
 void ActivateGhost(float time);
 void GhostSettled(Ghost& ghost);
+void SetGhostSprites();
