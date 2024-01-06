@@ -47,6 +47,7 @@ const Vector2f GHOST_VELOCITY_X = { GHOST_SPEED, 0.0f };
 const Vector2f GHOST_VELOCITY_Y = { 0.0f, GHOST_SPEED };
 
 const int GHOST_EXIT_POS = { 321 };
+const int BLINKY_SCATTER_POS = { 1 };
 
 // Board
 const int TILE_SIZE = 20;
@@ -166,6 +167,7 @@ struct GameState
 {
 	int score{ 0 };
 	float powerTimer{ 0.0f };
+	float ghostTimer{ 0.0f };
 	bool vulnerable{ false };
 	GameFlow state = STATE_IDLE;
 	PacmanState pState = PAC_IDLE;
@@ -203,6 +205,7 @@ void UpdateGameStates();
 void Draw();
 void CreateTiles();
 void CreateGameObjects();
+float GetDistance(Point2D pos1, Point2D pos2);
 
 void UpdatePacman();
 void UpdateDots();
