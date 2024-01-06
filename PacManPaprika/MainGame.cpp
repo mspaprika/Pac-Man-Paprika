@@ -143,8 +143,8 @@ void Draw()
 	}
 
 	// Draw Tile Map //
-	/*for (Tile& tile : vTiles)
-		Play::DrawRect({ tile.pos.x - TILE_SIZE / 2, tile.pos.y - TILE_SIZE / 2 }, { tile.pos.x + TILE_SIZE / 2, tile.pos.y + TILE_SIZE / 2 }, Play::cWhite);*/
+	//for (Tile& tile : vTiles)
+		//Play::DrawRect({ tile.pos.x - TILE_SIZE / 2, tile.pos.y - TILE_SIZE / 2 }, { tile.pos.x + TILE_SIZE / 2, tile.pos.y + TILE_SIZE / 2 }, Play::cWhite);
 
 
 	std::vector <int> vDots =  Play::CollectGameObjectIDsByType(TYPE_DOT);
@@ -397,7 +397,8 @@ void GhostAI(Ghost& ghost)
 		case GHOST_CHASE:
 		{
 			GhostNextTileReached(ghost);
-			//SetChaseTarget(ghost);
+
+			SetChaseTarget(ghost);
 
 			if (ghost.nextTile == ghost.currentTile)
 				SetGhostDirection(ghost);
@@ -408,8 +409,21 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_SCATTER:
 		{
-			if (IsGhostTargetReached(ghost))
-				SetScatterTarget(ghost);
+			gState.ghostTimer += 1.0f / 60.0f;
+			GhostNextTileReached(ghost);
+			SetScatterTarget(ghost);
+
+			if (ghost.nextTile == ghost.currentTile)
+				SetGhostDirection(ghost);
+
+			SetGhostNextTile(ghost);
+			GhostMovement(ghost);
+
+			if (gState.ghostTimer > 10.0f)
+			{
+				gState.ghostTimer = 0.0f;
+				ghost.state = GHOST_CHASE;
+			}
 
 			break;
 		}
@@ -456,6 +470,7 @@ void SetScatterTarget(Ghost& ghost)
 	{
 		case GHOST_BLINKY:
 		{
+			ghost.targetTile = BLINKY_SCATTER_POS;
 			break;
 		}
 		case GHOST_PINKY:
@@ -475,62 +490,147 @@ void SetScatterTarget(Ghost& ghost)
 
 void SetGhostDirection(Ghost& ghost)
 {
+	float distLeft = GetDistance(vTiles[ghost.currentTile - 1].pos, vTiles[ghost.targetTile].pos);
+	float distRight = GetDistance(vTiles[ghost.currentTile + 1].pos, vTiles[ghost.targetTile].pos);
+	float distUp = GetDistance(vTiles[ghost.currentTile - BOARD_SIZE.x].pos, vTiles[ghost.targetTile].pos);
+	float distDown = GetDistance(vTiles[ghost.currentTile + BOARD_SIZE.x].pos, vTiles[ghost.targetTile].pos);
+
 	switch (ghost.dir)
 	{
 		case DIR_UP:
 		{
-			if (vTiles[ghost.currentTile - BOARD_SIZE.x].type == TILE_WALL)
+			if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - 1].type == TILE_WALL)
+				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
 					ghost.dir = DIR_RIGHT;
-				else
+				else if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
 					ghost.dir = DIR_LEFT;
+				else (distLeft < distRight) ? ghost.dir = DIR_LEFT : ghost.dir = DIR_RIGHT;						
+			}
+			else if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_RIGHT;
+				else if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
+					ghost.dir = DIR_UP;
+				else (distUp < distRight) ? ghost.dir = DIR_UP : ghost.dir = DIR_RIGHT;					
+			}
+			else if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_LEFT;
+				else if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
+					ghost.dir = DIR_UP;
+				else (distUp < distLeft) ? ghost.dir = DIR_UP : ghost.dir = DIR_LEFT;						
 			}
 			else
-				ghost.dir = DIR_UP;
-
+			{
+				if (distUp <= distLeft && distUp <= distRight) ghost.dir = DIR_UP;
+				else if (distLeft <= distUp && distLeft <= distRight) ghost.dir = DIR_LEFT;
+				else ghost.dir = DIR_RIGHT;
+			}
 			break;
 		}
 		case DIR_DOWN:
 		{
-			if (vTiles[ghost.currentTile + BOARD_SIZE.x].type == TILE_WALL)
+			if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - 1].type == TILE_WALL)
+				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
 					ghost.dir = DIR_RIGHT;
-				else
+				else if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
 					ghost.dir = DIR_LEFT;
+				else (distLeft < distRight) ? ghost.dir = DIR_LEFT : ghost.dir = DIR_RIGHT;
+			}
+			else if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
+					ghost.dir = DIR_DOWN;
+				else if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_RIGHT;
+				else (distDown < distRight) ? ghost.dir = DIR_DOWN : ghost.dir = DIR_RIGHT;
+			}
+			else if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
+					ghost.dir = DIR_DOWN;
+				else if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_LEFT;
+				else (distDown < distLeft) ? ghost.dir = DIR_DOWN : ghost.dir = DIR_LEFT;
 			}
 			else
-				ghost.dir = DIR_DOWN;
-
+			{
+				if (distDown <= distLeft && distDown <= distRight) ghost.dir = DIR_DOWN;
+				else if (distLeft <= distDown && distLeft <= distRight) ghost.dir = DIR_LEFT;
+				else ghost.dir = DIR_RIGHT;
+			}
 			break;
 		}
 		case DIR_LEFT:
 		{
-			if (vTiles[ghost.currentTile - 1].type == TILE_WALL)
+			if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type == TILE_WALL)
+				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
 					ghost.dir = DIR_DOWN;
-				else
+				else if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
 					ghost.dir = DIR_UP;
+				else (distUp < distDown) ? ghost.dir = DIR_UP : ghost.dir = DIR_DOWN;
+			}
+			else if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
+					ghost.dir = DIR_DOWN;
+				else if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_LEFT;
+				else (distLeft < distDown) ? ghost.dir = DIR_LEFT : ghost.dir = DIR_DOWN;
+			}
+			else if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
+					ghost.dir = DIR_UP;
+				else if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_LEFT;
+				else (distLeft < distUp) ? ghost.dir = DIR_LEFT : ghost.dir = DIR_UP;
 			}
 			else
-				ghost.dir = DIR_LEFT;
-
+			{
+				if (distLeft <= distUp && distLeft <= distDown) ghost.dir = DIR_LEFT;
+				else if (distUp <= distLeft && distUp <= distDown) ghost.dir = DIR_UP;
+				else ghost.dir = DIR_DOWN;
+			}
 			break;
 		}
 		case DIR_RIGHT:
 		{
-			if (vTiles[ghost.currentTile + 1].type == TILE_WALL)
+			if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type == TILE_WALL)
+				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
 					ghost.dir = DIR_DOWN;
-				else
+				else if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
 					ghost.dir = DIR_UP;
+				else (distUp < distDown) ? ghost.dir = DIR_UP : ghost.dir = DIR_DOWN;
+			}
+			else if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
+					ghost.dir = DIR_DOWN;
+				else if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_RIGHT;
+				else (distRight < distDown) ? ghost.dir = DIR_RIGHT : ghost.dir = DIR_DOWN;
+			}
+			else if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
+			{
+				if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
+					ghost.dir = DIR_UP;
+				else if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
+					ghost.dir = DIR_RIGHT;
+				else (distRight < distUp) ? ghost.dir = DIR_RIGHT : ghost.dir = DIR_UP;
 			}
 			else
-				ghost.dir = DIR_RIGHT;
-
+			{
+				if (distRight <= distUp && distRight <= distDown) ghost.dir = DIR_RIGHT;
+				else if (distUp <= distRight && distUp <= distDown) ghost.dir = DIR_UP;
+				else ghost.dir = DIR_DOWN;
+			}
 			break;
 		}
 	}
@@ -684,7 +784,7 @@ void ExitGhostHouse(Ghost& ghost)
 				ghost.currentTile = GHOST_EXIT_POS;
 				ghost.targetTile = GHOST_EXIT_POS;
 				ghost.nextTile = GHOST_EXIT_POS;
-				ghost.state = GHOST_CHASE;
+				ghost.state = GHOST_SCATTER;
 			}
 
 			objGhost.velocity = GHOST_VELOCITY_Y * (-1);
@@ -705,5 +805,12 @@ void ExitGhostHouse(Ghost& ghost)
 	}
 }
 
+float GetDistance(Point2D pos1, Point2D pos2)
+{
+	float x = pos1.x - pos2.x;
+	float y = pos1.y - pos2.y;
+
+	return sqrt(x * x + y * y);
+}
 
 
