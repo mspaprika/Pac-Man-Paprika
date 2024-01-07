@@ -10,11 +10,20 @@ constexpr int DISPLAY_SCALE = 1;
 const char* SPR_BACKGROUND = "back";
 
 const char* SPR_PACMAN = "spr_pacman";
-const char* SPR_BLINKY = "ghost_blinky";
 const char* SPR_PINKY = "ghost_pinky";
 const char* SPR_INKY = "ghost_inky";
-const char* SPR_CLYDE = "ghost_clyde";
 const char* SPR_VULNERABLE = "ghost_vulnerable";
+
+const char* SPR_BLINKY = "ghost_blinky";
+const char* SPR_BLINKY_MOVE = "ghost_blinky_down";
+const char* SPR_BLINKY_MOVE_LEFT = "ghost_blinky_left";
+const char* SPR_BLINKY_MOVE_RIGHT = "ghost_blinky_right";
+
+const char* SPR_CLYDE = "ghost_clyde";
+const char* SPR_CLYDE_MOVE = "ghost_clyde_down";
+const char* SPR_CLYDE_MOVE_LEFT = "ghost_clyde_left";
+const char* SPR_CLYDE_MOVE_RIGHT = "ghost_clyde_right";
+
 
 const char* SPR_DOT = "dot";
 const char* SPR_POWER = "power";
@@ -34,6 +43,7 @@ const int PAC_RESPAWN_POS_RIGHT = { 419 };
 const float PACMAN_SPEED = { 1.5f };
 const Vector2f PACMAN_VELOCITY_X = { PACMAN_SPEED, 0.0f };
 const Vector2f PACMAN_VELOCITY_Y = { 0.0f, PACMAN_SPEED };
+const float PACMAN_ANIM_SPEED = { 0.3f };
 
 // Ghosts
 const int GHOST_RESPAWN_POS = { 391 };
@@ -47,9 +57,9 @@ const Vector2f GHOST_VELOCITY_X = { GHOST_SPEED, 0.0f };
 const Vector2f GHOST_VELOCITY_Y = { 0.0f, GHOST_SPEED };
 
 const int GHOST_EXIT_POS = { 321 };
-const int BLINKY_SCATTER_POS = { 1 };
-const int PINKY_SCATTER_POS = { 28 };
-const int INKY_SCATTER_POS = { 840 };
+const int BLINKY_SCATTER_POS = { 0 };
+const int PINKY_SCATTER_POS = { 27 };
+const int INKY_SCATTER_POS = { 841 };
 const int CLYDE_SCATTER_POS = { 867 };
 
 // Board
@@ -174,7 +184,18 @@ struct GameState
 	float powerTimer{ 0.0f };
 	float ghostTimer{ 0.0f };
 	bool vulnerable{ false };
-	GameFlow state = STATE_IDLE;
+	bool scatter{ false };
+	bool gameRestarted{ false };
+
+	float time{ 0.0f };
+	int lives{ 3 };
+	int level{ 1 };
+	int maxDots{ 0 };
+
+	float pSpeed{ PACMAN_SPEED };
+	float gSpeed{ GHOST_SPEED };
+
+	GameFlow state = STATE_PLAY;
 	PacmanState pState = PAC_IDLE;
 };
 
@@ -213,6 +234,8 @@ void CreateTiles();
 void CreateGameObjects();
 float GetDistance(Point2D pos1, Point2D pos2);
 void ReverseDirection(Ghost& ghost);
+void RestartGame();
+void DestroyObjects(int TYPE);
 
 void UpdatePacman();
 void UpdateDots();
@@ -237,4 +260,7 @@ void GhostNextTileReached(Ghost& ghost);
 void ExitGhostHouse(Ghost& ghost);
 void ActivateGhost(float time);
 void GhostSettled(Ghost& ghost);
-void SetGhostSprites();
+void SetGhostSprites(Ghost& ghost);
+void GhostReadyToGo(Ghost& ghost);
+void GhostScatterControl();
+void RestartGhosts();
