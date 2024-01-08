@@ -47,12 +47,14 @@ const float PACMAN_ANIM_SPEED = { 0.3f };
 
 // Ghosts
 const int GHOST_RESPAWN_POS = { 391 };
-const int INKY_SPAWN_POS = { 403 };
+const int INKY_SPAWN_POS = { 404 };
 const int CLYDE_SPAWN_POS = { 407 };
 const int PINKY_SPAWN_POS = { 405 };
 const int BLINKY_SPAWN_POS = { 321 };
 
 const float GHOST_SPEED = { 1.5f };
+const float GHOST_DEAD_SPEED = { 2.5f };
+
 const Vector2f GHOST_VELOCITY_X = { GHOST_SPEED, 0.0f };
 const Vector2f GHOST_VELOCITY_Y = { 0.0f, GHOST_SPEED };
 
@@ -191,6 +193,7 @@ struct GameState
 	int lives{ 3 };
 	int level{ 1 };
 	int maxDots{ 0 };
+	int ghostsEaten{ 0 };
 
 	float pSpeed{ PACMAN_SPEED };
 	float gSpeed{ GHOST_SPEED };
@@ -258,9 +261,13 @@ void GhostMovement(Ghost& ghost);
 
 void GhostNextTileReached(Ghost& ghost);
 void ExitGhostHouse(Ghost& ghost);
+void ReturnToGhostHouse(Ghost& ghost);
 void ActivateGhost(float time);
 void GhostSettled(Ghost& ghost);
 void SetGhostSprites(Ghost& ghost);
-void GhostReadyToGo(Ghost& ghost);
+void GhostReadyToGo(Ghost& ghost, int pos);
 void GhostScatterControl();
 void RestartGhosts();
+
+void VulnerableCollision(Ghost& ghost);
+void ChaseCollision(Ghost& ghost);

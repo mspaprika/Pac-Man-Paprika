@@ -100,7 +100,7 @@ void CreateGameObjects()
 
 	vGhosts.push_back(pinky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[INKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y }, 15, SPR_INKY);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[INKY_SPAWN_POS].pos.x - (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y }, 15, SPR_INKY);
 	Ghost inky;
 	inky.id = id;
 	inky.type = GHOST_INKY;
@@ -158,11 +158,11 @@ void DrawGameStats()
 {
 	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
 
-	Play::DrawFontText( "64", "next: " + std::to_string(vGhosts[0].nextTile), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
-	Play::DrawFontText( "64", "target: " + std::to_string(vGhosts[0].targetTile), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
-	Play::DrawFontText( "64", "current: " + std::to_string(vGhosts[0].currentTile), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "next: " + std::to_string(vGhosts[0].nextTile), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
+	//Play::DrawFontText( "64", "target: " + std::to_string(vGhosts[0].targetTile), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "current: " + std::to_string(vGhosts[0].currentTile), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
-	Play::DrawFontText("64", "time: " + std::to_string(gState.time), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
+	//Play::DrawFontText("64", "time: " + std::to_string(gState.time), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
 }
 
 void CreateTiles()
@@ -352,7 +352,7 @@ void UpdatePower()
 	{
 		gState.powerTimer += 1.0f / 60.0f;
 
-		if (gState.powerTimer > 4.0f)
+		if (gState.powerTimer > 10.0f)
 			gState.vulnerable = false;		
 	}
 
@@ -424,14 +424,43 @@ void PacmanMainControlls()
 
 void SweepNextTile(int id, int oldID)
 {
-	if (vTiles[id].type == TILE_WALL || vTiles[id].type == TILE_GHOST_SPAWN)
-		gState.pState = PAC_IDLE;
+	if (vTiles[id].type != TILE_EMPTY)
+		 gState.pState = PAC_IDLE;
 
 	else if (!vTiles[id].occupied)
 	{
 		pacman.nextTile = id;
 		vTiles[oldID].occupied = false;
 	}
+}
+
+
+// collisions //
+void VulnerableCollision(Ghost& ghost)
+{
+	GameObject& objGhost = Play::GetGameObject(ghost.id);
+	GameObject& objPacman = Play::GetGameObjectByType(TYPE_PACMAN);
+
+	if (Play::IsColliding(objGhost, objPacman))
+	{
+		ghost.state = GHOST_DEAD;
+		gState.ghostsEaten++;
+
+		if (gState.ghostsEaten == 1)
+			gState.score += 400;
+		else if (gState.ghostsEaten == 2)
+			gState.score += 800;
+		else if (gState.ghostsEaten == 3)
+			gState.score += 1200;
+		else if (gState.ghostsEaten == 4)
+			gState.score += 1600;
+	}
+}
+
+void ChaseCollision(Ghost& ghost)
+{
+	GameObject& objGhost = Play::GetGameObject(ghost.id);
+	GameObject& objPacman = Play::GetGameObjectByType(TYPE_PACMAN);
 }
 
 
@@ -491,6 +520,8 @@ void GhostAI(Ghost& ghost)
 	{
 		case GHOST_IDLE:
 		{
+			SetGhostSprites(ghost);
+
 			if (ghost.activated)
 				ExitGhostHouse(ghost);
 
@@ -498,8 +529,8 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_CHASE:
 		{
+			SetGhostSprites(ghost);
 			GhostNextTileReached(ghost);
-
 			SetChaseTarget(ghost);
 
 			if (ghost.nextTile == ghost.currentTile)
@@ -512,6 +543,7 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_SCATTER:
 		{
+			SetGhostSprites(ghost);
 			gState.scatter = true;
 
 			GhostNextTileReached(ghost);
@@ -534,10 +566,14 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_FRIGHTENED:
 		{
+			SetGhostSprites(ghost);
+			VulnerableCollision(ghost);
+
 			if (!gState.vulnerable)
 			{
 				ReverseDirection(ghost);
 				ghost.state = GHOST_CHASE;
+				gState.ghostsEaten = 0;
 				return;
 			}
 
@@ -553,6 +589,30 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_DEAD:
 		{
+			if (ghost.currentTile == GHOST_EXIT_POS)
+			{
+				ghost.state = GHOST_IDLE;
+
+				if (ghost.type == GHOST_BLINKY)
+					ghost.dir = DIR_LEFT;
+				else if (ghost.type == GHOST_PINKY)
+					ghost.dir = DIR_RIGHT;
+				else if (ghost.type == GHOST_INKY)
+					ghost.dir = DIR_RIGHT;
+				else if (ghost.type == GHOST_CLYDE)
+					ghost.dir = DIR_LEFT;
+			}
+
+			ghost.targetTile = GHOST_EXIT_POS;
+
+			GhostNextTileReached(ghost);
+
+			if (ghost.nextTile == ghost.currentTile)
+				SetGhostDirection(ghost);
+
+			SetGhostNextTile(ghost);
+			GhostMovement(ghost);
+
 			break;
 		}
 	}
@@ -871,6 +931,8 @@ void GhostMovement(Ghost& ghost)
 {
 	GameObject& objGhost = Play::GetGameObject(ghost.id);
 
+	(ghost.state == GHOST_DEAD) ? gState.gSpeed = GHOST_DEAD_SPEED : gState.gSpeed = GHOST_SPEED;
+
 	Vector2f vY = { 0.0f, gState.gSpeed };
 	Vector2f vX = { gState.gSpeed, 0.0f };
 
@@ -959,25 +1021,40 @@ void ExitGhostHouse(Ghost& ghost)
 	{
 		case GHOST_BLINKY:
 		{
-			GhostReadyToGo(ghost);
+			GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+			if (objGhost.pos.x < vTiles[GHOST_EXIT_POS].pos.x)
+				GhostReadyToGo(ghost, GHOST_EXIT_POS);
+
+			else objGhost.velocity = GHOST_VELOCITY_X * (-1);
+
 			break;
 		}
 		case GHOST_PINKY:
 		{
 			GameObject& objGhost = Play::GetGameObject(ghost.id);
-			if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
-				GhostReadyToGo(ghost);
 
-			objGhost.velocity = GHOST_VELOCITY_Y * (-1);
+			if (objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x && objGhost.pos.y < vTiles[INKY_SPAWN_POS].pos.y)
+				GhostReadyToGo(ghost, GHOST_EXIT_POS + 1);
+
+			else if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
+				objGhost.velocity = GHOST_VELOCITY_X;
+
+			else objGhost.velocity = GHOST_VELOCITY_Y * (-1);
+
 			break;
 		}
 		case GHOST_INKY:
 		{
 			GameObject& objGhost = Play::GetGameObject(ghost.id);
-			if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
-				GhostReadyToGo(ghost);
 
-			if (objGhost.pos.x > vTiles[GHOST_EXIT_POS].pos.x + TILE_SIZE / 2)
+			if (objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x && objGhost.pos.y < vTiles[INKY_SPAWN_POS].pos.y)
+				GhostReadyToGo(ghost, GHOST_EXIT_POS + 1);
+
+			else if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
+				objGhost.velocity = GHOST_VELOCITY_X;
+
+			else if (objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x - TILE_SIZE / 2)
 				objGhost.velocity = GHOST_VELOCITY_Y * (-1);
 			else
 				objGhost.velocity = GHOST_VELOCITY_X;
@@ -987,10 +1064,14 @@ void ExitGhostHouse(Ghost& ghost)
 		case GHOST_CLYDE:
 		{
 			GameObject& objGhost = Play::GetGameObject(ghost.id);
-			if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
-				GhostReadyToGo(ghost);
 
-			if (objGhost.pos.x < vTiles[GHOST_EXIT_POS + 1].pos.x - TILE_SIZE / 2)
+			if (objGhost.pos.x < vTiles[GHOST_EXIT_POS].pos.x && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y)
+				GhostReadyToGo(ghost, GHOST_EXIT_POS);
+
+			else if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
+				objGhost.velocity = GHOST_VELOCITY_X * (-1);
+
+			else if (objGhost.pos.x < vTiles[GHOST_EXIT_POS + 1].pos.x - TILE_SIZE / 2)
 				objGhost.velocity = GHOST_VELOCITY_Y * (-1);
 			else
 				objGhost.velocity = GHOST_VELOCITY_X * (-1);
@@ -1000,15 +1081,46 @@ void ExitGhostHouse(Ghost& ghost)
 	}
 }
 
-void GhostReadyToGo(Ghost& ghost)
+void ReturnToGhostHouse(Ghost& ghost)
+{
+	switch (ghost.type)
+	{
+		case GHOST_BLINKY:
+		{
+			GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+			break;
+		}
+		case GHOST_PINKY:
+		{
+			GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+			break;
+		}
+		case GHOST_INKY:
+		{
+			GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+			break;
+		}
+		case GHOST_CLYDE:
+		{
+			GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+			break;
+		}
+	}
+}
+
+void GhostReadyToGo(Ghost& ghost, int pos)
 {
 	GameObject& objGhost = Play::GetGameObject(ghost.id);
 
-	objGhost.pos = vTiles[GHOST_EXIT_POS].pos;
+	objGhost.pos = vTiles[pos].pos;
 	vTiles[GHOST_EXIT_POS].ghostOccupied = true;
-	ghost.currentTile = GHOST_EXIT_POS;
-	ghost.targetTile = GHOST_EXIT_POS;
-	ghost.nextTile = GHOST_EXIT_POS;
+	ghost.currentTile = pos;
+	ghost.targetTile = pos;
+	ghost.nextTile = pos;
 	ghost.state = GHOST_SCATTER;
 }
 
@@ -1146,7 +1258,7 @@ void RestartGhosts()
 			}
 			case GHOST_INKY:
 			{
-				objGhost.pos = { vTiles[INKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y };
+				objGhost.pos = { vTiles[INKY_SPAWN_POS].pos.x - (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y };
 				ghost.dir = DIR_RIGHT;
 				break;
 			}
