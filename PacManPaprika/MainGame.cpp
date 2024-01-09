@@ -25,6 +25,7 @@ bool MainGameUpdate( float elapsedTime )
 {
 	gState.time += elapsedTime;
 
+	PacmanAISwitch(elapsedTime);
 	GhostScatterControl();
 	UpdateGameStates();
 	Draw();
@@ -76,13 +77,13 @@ void UpdateGameStates()
 
 void CreateGameObjects()
 {
-	Point2D pos = vTiles[PACMAN_SPAWN_POS].pos;
+	Point2D pos = { vTiles[PACMAN_SPAWN_POS].pos.x - HALF_TILE, vTiles[PACMAN_SPAWN_POS].pos.y } ;
 	vTiles[PACMAN_SPAWN_POS].occupied = true;
 
 	int id = Play::CreateGameObject(TYPE_PACMAN, pos, 15, SPR_PACMAN);
 	Pacman pacman;
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[BLINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[BLINKY_SPAWN_POS].pos.y }, 15, SPR_BLINKY_MOVE_LEFT);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[BLINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[BLINKY_SPAWN_POS].pos.y }, 10, SPR_BLINKY_MOVE_LEFT);
 	Ghost blinky;
 	blinky.id = id;
 	blinky.type = GHOST_BLINKY;
@@ -92,7 +93,7 @@ void CreateGameObjects()
 
 	vGhosts.push_back(blinky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[PINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[PINKY_SPAWN_POS].pos.y }, 15, SPR_PINKY_MOVE_UP);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[PINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[PINKY_SPAWN_POS].pos.y }, 10, SPR_PINKY_MOVE_UP);
 	Ghost pinky;
 	pinky.id = id;
 	pinky.type = GHOST_PINKY;
@@ -102,7 +103,7 @@ void CreateGameObjects()
 
 	vGhosts.push_back(pinky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[INKY_SPAWN_POS].pos.x - (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y }, 15, SPR_INKY_MOVE_RIGHT);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[INKY_SPAWN_POS].pos.x - (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y }, 10, SPR_INKY_MOVE_RIGHT);
 	Ghost inky;
 	inky.id = id;
 	inky.type = GHOST_INKY;
@@ -112,7 +113,7 @@ void CreateGameObjects()
 
 	vGhosts.push_back(inky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[CLYDE_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[CLYDE_SPAWN_POS].pos.y }, 15, SPR_CLYDE_MOVE_LEFT);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[CLYDE_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[CLYDE_SPAWN_POS].pos.y }, 10, SPR_CLYDE_MOVE_LEFT);
 	Ghost clyde;
 	clyde.id = id;
 	clyde.type = GHOST_CLYDE;
@@ -164,7 +165,7 @@ void DrawGameStats()
 
 	//Play::DrawFontText( "64", "next: " + std::to_string(vGhosts[0].nextTile), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
 	//Play::DrawFontText( "64", "pac state: " + std::to_string(gState.pState), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
-	//Play::DrawFontText( "64", "direction: " + std::to_string(vGhosts[0].dir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
+	Play::DrawFontText( "64", "direction: " + std::to_string(pacman.nextDir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
 	//Play::DrawFontText("64", "time: " + std::to_string(gState.time), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
 }
@@ -265,6 +266,9 @@ void UpdatePacman()
 
 			PacmanMainControlls();
 
+			if (pacman.ai)
+				PacmanAI();
+
 			if (objPacman.pos.x < BOARD_LIM_LEFT)
 				objPacman.pos.x = BOARD_LIM_RIGHT;
 
@@ -292,6 +296,9 @@ void UpdatePacman()
 
 			PacmanMainControlls();
 
+			if (pacman.ai)
+				PacmanAI();
+
 			if (objPacman.pos.x > BOARD_LIM_RIGHT)
 				objPacman.pos.x = BOARD_LIM_LEFT;
 
@@ -314,6 +321,9 @@ void UpdatePacman()
 			objPacman.animSpeed = PACMAN_ANIM_SPEED;
 
 			PacmanMainControlls();
+
+			if (pacman.ai)
+				PacmanAI();
 			break;
 		}
 		case PAC_MOVE_DOWN:
@@ -332,6 +342,10 @@ void UpdatePacman()
 			objPacman.animSpeed = PACMAN_ANIM_SPEED;
 
 			PacmanMainControlls();
+
+			if (pacman.ai)
+				PacmanAI();
+
 			break;
 		}
 		case PAC_DYING:
@@ -429,17 +443,41 @@ void PacmanTargetReached(GameObject& objPacman)
 void PacmanMainControlls()
 {
 	if (Play::KeyDown(VK_LEFT) || Play::KeyDown('A'))
-		gState.pState = PAC_MOVE_LEFT;
+	{
+		if (gState.pState == PAC_IDLE) gState.pState = PAC_MOVE_LEFT;
+		else pacman.nextDir = DIR_LEFT;
+
+		pacman.ai = true;
+		pacman.dir = pacman.nextDir;
+	}
 
 	else if (Play::KeyDown(VK_RIGHT) || Play::KeyDown('D'))
-		gState.pState = PAC_MOVE_RIGHT;
-	
+	{
+		if (gState.pState == PAC_IDLE) gState.pState = PAC_MOVE_RIGHT;
+		else pacman.nextDir = DIR_RIGHT;
+
+		pacman.ai = true;
+		pacman.dir = pacman.nextDir;
+	}
+
 	else if (Play::KeyDown(VK_UP) || Play::KeyDown('W'))
-		gState.pState = PAC_MOVE_UP;
-	
+	{
+		if (gState.pState == PAC_IDLE) gState.pState = PAC_MOVE_UP;
+		else pacman.nextDir = DIR_UP;
+
+		pacman.ai = true;
+		pacman.dir = pacman.nextDir;
+	}
+
 	else if (Play::KeyDown(VK_DOWN) || Play::KeyDown('S'))
-		gState.pState = PAC_MOVE_DOWN;
-}
+	{
+		if (gState.pState == PAC_IDLE) gState.pState = PAC_MOVE_DOWN;
+		else pacman.nextDir = DIR_DOWN;
+
+		pacman.ai = true;
+		pacman.dir = pacman.nextDir;
+	}
+}	
 
 void SweepNextTile(int id, int oldID)
 {
@@ -452,6 +490,62 @@ void SweepNextTile(int id, int oldID)
 		vTiles[oldID].occupied = false;
 	}
 }
+
+void SweepNewTile(int id)
+{
+	if (!vTiles[id].occupied && vTiles[id].type == TILE_EMPTY)
+	{
+		pacman.nextTile = id;
+		vTiles[pacman.currentTile].occupied = false;
+		 
+		if (pacman.dir == DIR_DOWN) gState.pState = PAC_MOVE_DOWN;
+		else if (pacman.dir == DIR_UP) gState.pState = PAC_MOVE_UP;
+		else if (pacman.dir == DIR_LEFT) gState.pState = PAC_MOVE_LEFT;
+		else if (pacman.dir == DIR_RIGHT) gState.pState = PAC_MOVE_RIGHT;
+	}
+}
+
+void PacmanAI()
+{
+	switch (pacman.nextDir)
+	{
+		case DIR_LEFT:
+		{
+			SweepNewTile(pacman.currentTile - 1);
+			break;
+		}
+		case DIR_RIGHT:
+		{
+			SweepNewTile(pacman.currentTile + 1);
+			break;
+		}
+		case DIR_UP:
+		{
+			SweepNewTile(pacman.currentTile - BOARD_SIZE.x);
+			break;
+		}
+		case DIR_DOWN:
+		{
+			SweepNewTile(pacman.currentTile + BOARD_SIZE.x);
+			break;
+		}
+	}
+}
+
+void PacmanAISwitch(float time)
+{
+	if (pacman.ai)
+	{
+		if (gState.pacTimer > PACMAN_AI_DURATION)
+		{
+			pacman.ai = false;
+			pacman.nextDir = DIR_NONE;
+			gState.pacTimer = 0.0f;
+		}
+		gState.pacTimer += time;
+	}
+}
+
 
 
 // collisions //
@@ -1153,7 +1247,8 @@ void ReturnAndExitGhostHouse(Ghost& ghost)
 		else if (objGhost.pos.y > vTiles[CLYDE_SPAWN_POS].pos.y)
 			objGhost.velocity = { GHOST_DEAD_SPEED, 0.f };
 		
-		else if (objGhost.pos.x > vTiles[GHOST_EXIT_POS].pos.x + HALF_TILE && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y)
+		else if (ghost.dir == DIR_RIGHT && objGhost.pos.x > vTiles[GHOST_EXIT_POS].pos.x + HALF_TILE && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y
+			|| ghost.dir == DIR_LEFT && objGhost.pos.x < vTiles[GHOST_EXIT_POS + 1].pos.x - HALF_TILE && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y)
 			objGhost.velocity = { 0.f, GHOST_DEAD_SPEED };
 		
 		else objGhost.velocity = { GHOST_DEAD_SPEED, 0.f };
@@ -1255,10 +1350,11 @@ void RestartGame()
 	vTiles.clear();
 	CreateTiles();
 
-	Play::GetGameObjectByType(TYPE_PACMAN).pos = { vTiles[PACMAN_SPAWN_POS].pos.x, vTiles[PACMAN_SPAWN_POS].pos.y };
-	Play::GetGameObjectByType(TYPE_PACMAN).frame = 0;
-	Play::GetGameObjectByType(TYPE_PACMAN).rotation = 0.0f;
-	Play::SetSprite(Play::GetGameObjectByType(TYPE_PACMAN), SPR_PACMAN, 0.f);
+	GameObject& objPacman = Play::GetGameObjectByType(TYPE_PACMAN);
+	objPacman.pos = { vTiles[PACMAN_SPAWN_POS].pos.x - HALF_TILE, vTiles[PACMAN_SPAWN_POS].pos.y };
+	objPacman.frame = 0;
+	objPacman.rotation = 0.0f;
+	Play::SetSprite(objPacman, SPR_PACMAN, 0.f);
 	pacman.currentTile = PACMAN_SPAWN_POS;
 	pacman.nextTile = PACMAN_SPAWN_POS;
 
