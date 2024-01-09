@@ -82,39 +82,43 @@ void CreateGameObjects()
 	int id = Play::CreateGameObject(TYPE_PACMAN, pos, 15, SPR_PACMAN);
 	Pacman pacman;
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[BLINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[BLINKY_SPAWN_POS].pos.y }, 15, SPR_BLINKY);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[BLINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[BLINKY_SPAWN_POS].pos.y }, 15, SPR_BLINKY_MOVE_LEFT);
 	Ghost blinky;
 	blinky.id = id;
 	blinky.type = GHOST_BLINKY;
 	blinky.state = GHOST_IDLE;
-	blinky.dir = DIR_UP;
+	blinky.dir = DIR_LEFT;
+	blinky.SPRITE = SPR_BLINKY_MOVE_LEFT;
 
 	vGhosts.push_back(blinky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[PINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[PINKY_SPAWN_POS].pos.y }, 15, SPR_PINKY);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[PINKY_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[PINKY_SPAWN_POS].pos.y }, 15, SPR_PINKY_MOVE_UP);
 	Ghost pinky;
 	pinky.id = id;
 	pinky.type = GHOST_PINKY;
 	pinky.state = GHOST_IDLE;
 	pinky.dir = DIR_UP;
+	pinky.SPRITE = SPR_PINKY_MOVE_UP;
 
 	vGhosts.push_back(pinky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[INKY_SPAWN_POS].pos.x - (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y }, 15, SPR_INKY);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[INKY_SPAWN_POS].pos.x - (TILE_SIZE / 2), vTiles[INKY_SPAWN_POS].pos.y }, 15, SPR_INKY_MOVE_RIGHT);
 	Ghost inky;
 	inky.id = id;
 	inky.type = GHOST_INKY;
 	inky.state = GHOST_IDLE;
 	inky.dir = DIR_RIGHT;
+	inky.SPRITE = SPR_INKY_MOVE_RIGHT;
 
 	vGhosts.push_back(inky);
 
-	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[CLYDE_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[CLYDE_SPAWN_POS].pos.y }, 15, SPR_CLYDE);
+	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[CLYDE_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[CLYDE_SPAWN_POS].pos.y }, 15, SPR_CLYDE_MOVE_LEFT);
 	Ghost clyde;
 	clyde.id = id;
 	clyde.type = GHOST_CLYDE;
 	clyde.state = GHOST_IDLE;
 	clyde.dir = DIR_LEFT;
+	clyde.SPRITE = SPR_CLYDE_MOVE_LEFT;
 
 	vGhosts.push_back(clyde);
 }
@@ -159,8 +163,8 @@ void DrawGameStats()
 	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
 
 	//Play::DrawFontText( "64", "next: " + std::to_string(vGhosts[0].nextTile), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
-	//Play::DrawFontText( "64", "target: " + std::to_string(vGhosts[0].targetTile), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
-	//Play::DrawFontText( "64", "current: " + std::to_string(vGhosts[0].currentTile), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "pac state: " + std::to_string(gState.pState), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "direction: " + std::to_string(vGhosts[0].dir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
 	//Play::DrawFontText("64", "time: " + std::to_string(gState.time), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
 }
@@ -225,6 +229,8 @@ void UpdatePacman()
 
 	Vector2f vY = { 0.0f, gState.pSpeed };
 	Vector2f vX = { gState.pSpeed, 0.0f };
+
+	ChaseCollision();
 
 	switch (gState.pState)
 	{
@@ -328,6 +334,17 @@ void UpdatePacman()
 			PacmanMainControlls();
 			break;
 		}
+		case PAC_DYING:
+		{
+			Play::SetSprite(objPacman, SPR_PACMAN_DEAD, 0.1f);
+
+			if (Play::IsAnimationComplete(objPacman))
+				RestartGame();
+
+			objPacman.velocity = { 0, 0 };
+
+			break;
+		}
 	}
 
 	Play::UpdateGameObject(objPacman);
@@ -338,9 +355,11 @@ void UpdateGhosts()
 	for (Ghost& ghost : vGhosts)
 	{
 		GameObject& objGhost = Play::GetGameObject(ghost.id);
-	
+
+		if (ghost.currentTile >= GHOST_EXIT_POS)
+			ghost.exited = true;
+		
 		GhostAI(ghost);
-		SetGhostSprites(ghost);
 
 		Play::UpdateGameObject(objGhost);
 	}
@@ -370,7 +389,7 @@ void UpdatePower()
 
 			for (Ghost& ghost : vGhosts)
 			{
-				if (ghost.activated)
+				if (ghost.activated && ghost.exited)
 				{
 					ReverseDirection(ghost);
 					ghost.targetTile = Play::RandomRoll(vTiles.size() - 100);
@@ -445,6 +464,7 @@ void VulnerableCollision(Ghost& ghost)
 	{
 		ghost.state = GHOST_DEAD;
 		gState.ghostsEaten++;
+		ghost.eaten = true;
 
 		if (gState.ghostsEaten == 1)
 			gState.score += 400;
@@ -457,10 +477,18 @@ void VulnerableCollision(Ghost& ghost)
 	}
 }
 
-void ChaseCollision(Ghost& ghost)
+void ChaseCollision()
 {
-	GameObject& objGhost = Play::GetGameObject(ghost.id);
 	GameObject& objPacman = Play::GetGameObjectByType(TYPE_PACMAN);
+
+	for (Ghost& ghost : vGhosts)
+	{
+		GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+		if (ghost.state == GHOST_SCATTER || ghost.state == GHOST_CHASE)
+			if (Play::IsColliding(objGhost, objPacman))
+				gState.pState = PAC_DYING;
+	}
 }
 
 
@@ -521,7 +549,6 @@ void GhostAI(Ghost& ghost)
 		case GHOST_IDLE:
 		{
 			SetGhostSprites(ghost);
-
 			if (ghost.activated)
 				ExitGhostHouse(ghost);
 
@@ -532,6 +559,8 @@ void GhostAI(Ghost& ghost)
 			SetGhostSprites(ghost);
 			GhostNextTileReached(ghost);
 			SetChaseTarget(ghost);
+
+			if (!gState.vulnerable) ghost.eaten = false;
 
 			if (ghost.nextTile == ghost.currentTile)
 				SetGhostDirection(ghost);
@@ -545,6 +574,8 @@ void GhostAI(Ghost& ghost)
 		{
 			SetGhostSprites(ghost);
 			gState.scatter = true;
+
+			 if (!gState.vulnerable) ghost.eaten = false;
 
 			GhostNextTileReached(ghost);
 			SetScatterTarget(ghost);
@@ -589,18 +620,12 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_DEAD:
 		{
+			Play::SetSprite( Play::GetGameObject(ghost.id), (!ghost.returned) ? SPR_VULNERABLE : ghost.SPRITE, 0.f);
+
 			if (ghost.currentTile == GHOST_EXIT_POS)
 			{
-				ghost.state = GHOST_IDLE;
-
-				if (ghost.type == GHOST_BLINKY)
-					ghost.dir = DIR_LEFT;
-				else if (ghost.type == GHOST_PINKY)
-					ghost.dir = DIR_RIGHT;
-				else if (ghost.type == GHOST_INKY)
-					ghost.dir = DIR_RIGHT;
-				else if (ghost.type == GHOST_CLYDE)
-					ghost.dir = DIR_LEFT;
+				ReturnAndExitGhostHouse(ghost);
+				break;
 			}
 
 			ghost.targetTile = GHOST_EXIT_POS;
@@ -622,46 +647,59 @@ void SetGhostSprites(Ghost& ghost)
 {
 	switch (ghost.dir)
 	{
-		case (DIR_UP || DIR_DOWN):
+		case DIR_UP:
 		{
 			if (ghost.type == GHOST_BLINKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_BLINKY_MOVE, 0.1f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_BLINKY_MOVE_UP, 0.1f);
 			else if (ghost.type == GHOST_PINKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_PINKY, 1.f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_PINKY_MOVE_UP, 0.1f);
 			else if (ghost.type == GHOST_INKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_INKY, 1.f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_INKY_MOVE_UP, 0.1f);
 			else if (ghost.type == GHOST_CLYDE)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_CLYDE_MOVE, 0.1f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_CLYDE_MOVE_UP, 0.1f);
+
+			break;
+		}
+		case DIR_DOWN:
+		{
+			if (ghost.type == GHOST_BLINKY)
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_BLINKY_MOVE_DOWN, 0.1f);
+			else if (ghost.type == GHOST_PINKY)
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_PINKY_MOVE_DOWN, 0.1f);
+			else if (ghost.type == GHOST_INKY)
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_INKY_MOVE_DOWN, 0.1f);
+			else if (ghost.type == GHOST_CLYDE)
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_CLYDE_MOVE_DOWN, 0.1f);
 		
 			break;
 		}
 		case DIR_LEFT:
 		{
 			if (ghost.type == GHOST_BLINKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_BLINKY_MOVE_LEFT, 0.1f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_BLINKY_MOVE_LEFT, 0.1f);
 			else if (ghost.type == GHOST_PINKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_PINKY, 1.f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_PINKY_MOVE_LEFT, 0.1f);
 			else if (ghost.type == GHOST_INKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_INKY, 1.f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_INKY_MOVE_LEFT, 0.1f);
 			else if (ghost.type == GHOST_CLYDE)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_CLYDE_MOVE_LEFT, 0.1f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_CLYDE_MOVE_LEFT, 0.1f);
 
 			break;
 		}
 		case DIR_RIGHT:
 		{
 			if (ghost.type == GHOST_BLINKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_BLINKY_MOVE_RIGHT, 0.1f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_BLINKY_MOVE_RIGHT, 0.1f);
 			else if (ghost.type == GHOST_PINKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_PINKY, 1.f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_PINKY_MOVE_RIGHT, 0.1f);
 			else if (ghost.type == GHOST_INKY)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_INKY, 1.f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_INKY_MOVE_RIGHT, 0.1f);
 			else if (ghost.type == GHOST_CLYDE)
-				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated ? SPR_VULNERABLE : SPR_CLYDE_MOVE_RIGHT, 0.1f);
+				Play::SetSprite(Play::GetGameObject(ghost.id), (gState.vulnerable) && ghost.activated && !ghost.eaten ? SPR_VULNERABLE : SPR_CLYDE_MOVE_RIGHT, 0.1f);
 
 			break;
 		}
-	}
+	}	
 }
 
 void SetChaseTarget(Ghost& ghost)
@@ -1054,7 +1092,7 @@ void ExitGhostHouse(Ghost& ghost)
 			else if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
 				objGhost.velocity = GHOST_VELOCITY_X;
 
-			else if (objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x - TILE_SIZE / 2)
+			else if (objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x - HALF_TILE)
 				objGhost.velocity = GHOST_VELOCITY_Y * (-1);
 			else
 				objGhost.velocity = GHOST_VELOCITY_X;
@@ -1071,7 +1109,7 @@ void ExitGhostHouse(Ghost& ghost)
 			else if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
 				objGhost.velocity = GHOST_VELOCITY_X * (-1);
 
-			else if (objGhost.pos.x < vTiles[GHOST_EXIT_POS + 1].pos.x - TILE_SIZE / 2)
+			else if (objGhost.pos.x < vTiles[GHOST_EXIT_POS + 1].pos.x - HALF_TILE)
 				objGhost.velocity = GHOST_VELOCITY_Y * (-1);
 			else
 				objGhost.velocity = GHOST_VELOCITY_X * (-1);
@@ -1081,34 +1119,44 @@ void ExitGhostHouse(Ghost& ghost)
 	}
 }
 
-void ReturnToGhostHouse(Ghost& ghost)
+void ReturnAndExitGhostHouse(Ghost& ghost)
 {
-	switch (ghost.type)
+	GameObject& objGhost = Play::GetGameObject(ghost.id);
+
+	if (ghost.returned)
 	{
-		case GHOST_BLINKY:
+		if (ghost.dir == DIR_LEFT && objGhost.pos.x < vTiles[GHOST_EXIT_POS].pos.x && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y
+			|| ghost.dir == DIR_RIGHT && objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y)
 		{
-			GameObject& objGhost = Play::GetGameObject(ghost.id);
-
-			break;
+			ghost.returned = false;
+			ghost.currentTile = (ghost.dir == DIR_RIGHT) ? GHOST_EXIT_POS + 1 : GHOST_EXIT_POS;
+			gState.ghostTimer = 0.0f;
+			ghost.state = GHOST_SCATTER;
 		}
-		case GHOST_PINKY:
+
+		else if (objGhost.pos.y < vTiles[GHOST_EXIT_POS].pos.y)
+			objGhost.velocity = { (ghost.dir == DIR_RIGHT) ? GHOST_DEAD_SPEED : GHOST_DEAD_SPEED * (-1), 0.f };
+
+		else if (objGhost.pos.x < vTiles[GHOST_EXIT_POS + 1].pos.x - HALF_TILE)
+			objGhost.velocity = { 0.f, GHOST_DEAD_SPEED * (-1) };
+		else
+			objGhost.velocity = { GHOST_DEAD_SPEED * (-1), 0.f };
+	}
+	else
+	{
+		if (objGhost.pos.x > vTiles[CLYDE_SPAWN_POS].pos.x)
 		{
-			GameObject& objGhost = Play::GetGameObject(ghost.id);
-
-			break;
+			objGhost.velocity = { 0.f, 0.f };
+			ghost.returned = true;
 		}
-		case GHOST_INKY:
-		{
-			GameObject& objGhost = Play::GetGameObject(ghost.id);
 
-			break;
-		}
-		case GHOST_CLYDE:
-		{
-			GameObject& objGhost = Play::GetGameObject(ghost.id);
-
-			break;
-		}
+		else if (objGhost.pos.y > vTiles[CLYDE_SPAWN_POS].pos.y)
+			objGhost.velocity = { GHOST_DEAD_SPEED, 0.f };
+		
+		else if (objGhost.pos.x > vTiles[GHOST_EXIT_POS].pos.x + HALF_TILE && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y)
+			objGhost.velocity = { 0.f, GHOST_DEAD_SPEED };
+		
+		else objGhost.velocity = { GHOST_DEAD_SPEED, 0.f };
 	}
 }
 
@@ -1209,9 +1257,10 @@ void RestartGame()
 
 	Play::GetGameObjectByType(TYPE_PACMAN).pos = { vTiles[PACMAN_SPAWN_POS].pos.x, vTiles[PACMAN_SPAWN_POS].pos.y };
 	Play::GetGameObjectByType(TYPE_PACMAN).frame = 0;
+	Play::GetGameObjectByType(TYPE_PACMAN).rotation = 0.0f;
+	Play::SetSprite(Play::GetGameObjectByType(TYPE_PACMAN), SPR_PACMAN, 0.f);
 	pacman.currentTile = PACMAN_SPAWN_POS;
 	pacman.nextTile = PACMAN_SPAWN_POS;
-	pacman.dir = DIR_RIGHT;
 
 	RestartGhosts();
 
@@ -1238,6 +1287,8 @@ void RestartGhosts()
 	{
 		ghost.state = GHOST_IDLE;
 		ghost.activated = false;
+		ghost.returned = false;
+		ghost.exited = false;
 
 		GameObject& objGhost = Play::GetGameObject(ghost.id);
 		objGhost.velocity = { 0, 0 };
