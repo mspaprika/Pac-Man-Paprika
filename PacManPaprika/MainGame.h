@@ -49,10 +49,12 @@ const int PACMAN_SPAWN_POS = { 658 };
 const int PAC_RESPAWN_POS_LEFT = { 392 };
 const int PAC_RESPAWN_POS_RIGHT = { 419 };
 
-const float PACMAN_SPEED = { 2.f };
+const float PACMAN_SPEED = { 2.5f };
 const Vector2f PACMAN_VELOCITY_X = { PACMAN_SPEED, 0.0f };
 const Vector2f PACMAN_VELOCITY_Y = { 0.0f, PACMAN_SPEED };
-const float PACMAN_ANIM_SPEED = { 0.3f };
+const float PACMAN_ANIM_SPEED = { 0.4f };
+
+const float PACMAN_AI_DURATION = { 0.3f };
 
 // Ghosts
 const int GHOST_RESPAWN_POS = { 391 };
@@ -188,6 +190,7 @@ enum Direction
 	DIR_DOWN,
 	DIR_LEFT,
 	DIR_RIGHT,
+	DIR_NONE,
 };
 
 struct GameState
@@ -195,12 +198,14 @@ struct GameState
 	int score{ 0 };
 	float powerTimer{ 0.0f };
 	float ghostTimer{ 0.0f };
+	float pacTimer{ 0.0f };
+
 	bool vulnerable{ false };
 	bool scatter{ false };
 	bool gameRestarted{ false };
 
 	float time{ 0.0f };
-	int lives{ 3 };
+	int lives{ 5 };
 	int level{ 1 };
 	int maxDots{ 0 };
 	int ghostsEaten{ 0 };
@@ -237,11 +242,13 @@ struct Pacman
 	Point2D pos;
 
 	Direction dir;
-	Direction nextDir;
+	Direction nextDir = DIR_NONE;
 
 	int currentRow;
 	int currentTile = PACMAN_SPAWN_POS;
 	int nextTile = PACMAN_SPAWN_POS	;
+
+	bool ai{ false };
 };
 
 // Functions' declarations
@@ -286,3 +293,6 @@ void RestartGhosts();
 
 void VulnerableCollision(Ghost& ghost);
 void ChaseCollision();
+void SweepNewTile(int id);
+void PacmanAI();
+void PacmanAISwitch(float time);
