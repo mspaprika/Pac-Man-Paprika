@@ -18,6 +18,8 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 
 	CreateTiles();
 	CreateGameObjects();
+
+	if (gState.sound) Play::PlayAudio(SND_PAC_INTRO);
 }
 
 // Called by PlayBuffer every frame (60 times a second!)
@@ -48,26 +50,108 @@ int MainGameExit( void )
 // Main Game Functions //
 void UpdateGameStates()
 {
+	if (gState.lives == 0) gState.state = STATE_GAME_OVER;
+	if (Play::KeyPressed(VK_F2)) gState.sound = !gState.sound;
+
 	switch (gState.state)
 	{
 		case STATE_IDLE:
 		{
+			gState.visible = true;
+			gState.ghoVisible = true;
+			pacman.visible = true;
+			gState.msgID = 0;
+			gState.msgVisible = true;
+
+			if (gState.time > 4.0f) gState.state = STATE_PLAY;
+
 			break;
 		}
 		case STATE_PLAY:
 		{
+			gState.msgVisible = false;
+
 			UpdatePacman();
 			UpdatePower();
 			UpdateDots();
+			UpdateFruits();
 			UpdateGhosts();
+
+			if (Play::KeyPressed(VK_SPACE)) gState.state = STATE_PAUSE;
+
 			break;
 		}
 		case STATE_GAME_OVER:
 		{
+			gState.visible = false;
+			gState.ghoVisible = false;
+			pacman.visible = false;
+			gState.msgID = 1;
+			gState.msgVisible = true;
+
+			if (Play::KeyPressed(VK_SPACE))
+			{
+				gState.totalRestart = true;
+				RestartGame();
+				gState.totalRestart = false;
+				gState.level = 1;
+				gState.ghoVisible = true;
+				pacman.visible = true;
+				gState.visible = true;
+				gState.lives = 5;
+				gState.score = 0;
+				gState.msgVisible = false;
+				Play::PlayAudio(SND_PAC_INTRO);
+				gState.state = STATE_IDLE;
+			}
+
+			break;
+		}
+		case STATE_WIN:
+		{
+			gState.visible = false;
+			gState.ghoVisible = false;
+			pacman.visible = false;
+			gState.msgID = 2;
+			gState.msgVisible = true;
+			pacman.wTimer += 1.0f / 60.0f;
+
+			if (pacman.wTimer > 2.f)
+			{
+				gState.totalRestart = true;
+				RestartGame();
+				gState.totalRestart = false;
+				gState.level++;
+				gState.lives = 5;
+				gState.pSpeed += 0.5f;
+				gState.gSpeed += 0.5f;
+				gState.ghoVisible = true;
+				pacman.visible = true;
+				gState.visible = true;
+				Play::PlayAudio(SND_PAC_INTRO);
+				for (Ghost& ghost : vGhosts) SetGhostSprites(ghost);
+
+				gState.state = STATE_IDLE;
+			}
+
 			break;
 		}
 		case STATE_PAUSE:
 		{
+			gState.visible = false;
+			gState.ghoVisible = false;
+			pacman.visible = false;
+			gState.msgID = 3;
+			gState.msgVisible = true;
+
+			if (Play::KeyPressed(VK_SPACE))
+			{
+				gState.ghoVisible = true;
+				pacman.visible = true;
+				gState.visible = true;
+				gState.msgVisible = false;
+				gState.state = STATE_PLAY;
+			}
 			break;
 		}
 	}
@@ -130,18 +214,38 @@ void Draw()
 
 	Play::DrawSprite(SPR_BACKGROUND, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 1);
 
+	if (gState.sound)
+		Play::DrawSpriteRotated(SPR_SOUND, { 30, 30 }, 0, 0.f, 2.f);
+
 	// Draw Tile Map //
 	//for (Tile& tile : vTiles)
 		//Play::DrawRect({ tile.pos.x - TILE_SIZE / 2, tile.pos.y - TILE_SIZE / 2 }, { tile.pos.x + TILE_SIZE / 2, tile.pos.y + TILE_SIZE / 2 }, Play::cWhite);
 
-	DrawGameObjects(TYPE_PACMAN);
-	DrawGameObjects(TYPE_POWER);
-	DrawGameObjects(TYPE_DOT);
-	DrawGameObjects(TYPE_GHOST);
+	if (gState.visible) DrawGameObjects(TYPE_POWER);
+	if (gState.visible) DrawGameObjects(TYPE_DOT);
+	if (gState.visible) DrawGameObjects(TYPE_FRUIT);
+	if (gState.ghoVisible) DrawGameObjects(TYPE_GHOST);
+	if (pacman.visible) DrawGameObjects(TYPE_PACMAN);
+
+	if (gState.lives > 4)
+		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 3)
+		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 40, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 2)
+		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 80, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 1)
+		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 120, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 0)
+		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 160, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+
+	Play::DrawSpriteRotated(SPR_PEPPER, { DISPLAY_WIDTH / 2 + 140, OFFSET_BOTTOM }, 0, 0.f, 2.f);
 
 	//Play::DrawCircle(pacman.pos, 15, Play::cWhite);
 	//Play::DrawCircle(ghost.pos, 15, Play::cRed);
 	//Play::DrawCircle(dot.pos, 5, Play::cWhite);
+
+	GameObject& objGhost = Play::GetGameObject(vGhosts[0].id);
+	//Play::DrawCircle(objGhost.pos, 10, Play::cWhite);
 
 	DrawGameStats();
 
@@ -162,12 +266,17 @@ void DrawGameObjects(int TYPE)
 void DrawGameStats()
 {
 	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
+	Play::DrawFontText( "64", "LEVEL: " + std::to_string(gState.level), { BOARD_LIM_RIGHT - 20, 30 }, Play::RIGHT );
 
 	//Play::DrawFontText( "64", "next: " + std::to_string(vGhosts[0].nextTile), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
-	//Play::DrawFontText( "64", "pac state: " + std::to_string(gState.pState), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
-	Play::DrawFontText( "64", "direction: " + std::to_string(pacman.nextDir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
-	Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
-	//Play::DrawFontText("64", "time: " + std::to_string(gState.time), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
+	//Play::DrawFontText( "64", "g state: " + std::to_string(gState.state), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "direction: " + std::to_string(pacman.nextDir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
+	//Play::DrawFontText("64", "dots: " + std::to_string(gState.maxDots), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
+
+	if (gState.msgVisible)
+		Play::DrawFontText("64", MESSAGES[gState.msgID], { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 50 }, Play::CENTRE);
+
 }
 
 void CreateTiles()
@@ -214,6 +323,11 @@ void CreateTiles()
 					Play::CreateGameObject(TYPE_POWER, tile.pos, 5, SPR_POWER);
 					break;
 				}
+				case 5:
+				{
+					tile.type = TILE_EMPTY;
+					break;
+				}
 			}
 
 			vTiles.push_back(tile);
@@ -241,7 +355,6 @@ void UpdatePacman()
 			objPacman.animSpeed = 0.f;
 			objPacman.frame = 0;
 			PacmanMainControlls();
-
 			break;
 		}
 		case PAC_MOVE_LEFT:
@@ -253,21 +366,17 @@ void UpdatePacman()
 			{
 				if (pacman.currentTile == PAC_RESPAWN_POS_LEFT)
 					SweepNextTile(PAC_RESPAWN_POS_RIGHT, pacman.currentTile);
-				else
-					SweepNextTile(pacman.currentTile - 1, pacman.currentTile);
+				else SweepNextTile(pacman.currentTile - 1, pacman.currentTile);
 			}
 			
 			objPacman.velocity = vX * (-1);
 
-			if (vTiles[pacman.currentTile - 1].type == TILE_EMPTY)
-				objPacman.rotation = 3.14f;
+			if (vTiles[pacman.currentTile - 1].type == TILE_EMPTY) objPacman.rotation = 3.14f;
 
 			objPacman.animSpeed = PACMAN_ANIM_SPEED;
-
 			PacmanMainControlls();
 
-			if (pacman.ai)
-				PacmanAI();
+			if (pacman.ai) PacmanAI();
 
 			if (objPacman.pos.x < BOARD_LIM_LEFT)
 				objPacman.pos.x = BOARD_LIM_RIGHT;
@@ -283,24 +392,19 @@ void UpdatePacman()
 			{
 				if (pacman.currentTile == PAC_RESPAWN_POS_RIGHT)
 					SweepNextTile(PAC_RESPAWN_POS_LEFT, pacman.currentTile);
-				else
-					SweepNextTile(pacman.currentTile + 1, pacman.currentTile);
+				else SweepNextTile(pacman.currentTile + 1, pacman.currentTile);
 			}
 
 			objPacman.velocity = vX;
 
-			if (vTiles[pacman.currentTile + 1].type == TILE_EMPTY)
-				objPacman.rotation = 0.f;
+			if (vTiles[pacman.currentTile + 1].type == TILE_EMPTY) objPacman.rotation = 0.f;
 
 			objPacman.animSpeed = PACMAN_ANIM_SPEED;
-
 			PacmanMainControlls();
 
-			if (pacman.ai)
-				PacmanAI();
+			if (pacman.ai) PacmanAI();
 
-			if (objPacman.pos.x > BOARD_LIM_RIGHT)
-				objPacman.pos.x = BOARD_LIM_LEFT;
+			if (objPacman.pos.x > BOARD_LIM_RIGHT) objPacman.pos.x = BOARD_LIM_LEFT;
 
 			break;
 		}
@@ -312,18 +416,15 @@ void UpdatePacman()
 			if (pacman.currentTile == pacman.nextTile)
 				SweepNextTile(pacman.currentTile - BOARD_SIZE.x, pacman.currentTile);
 
-
 			objPacman.velocity = vY * (-1);
 
 			if (vTiles[pacman.currentTile - BOARD_SIZE.x].type == TILE_EMPTY)
 				objPacman.rotation = 4.71f;
 
 			objPacman.animSpeed = PACMAN_ANIM_SPEED;
-
 			PacmanMainControlls();
 
-			if (pacman.ai)
-				PacmanAI();
+			if (pacman.ai) PacmanAI();
 			break;
 		}
 		case PAC_MOVE_DOWN:
@@ -336,27 +437,31 @@ void UpdatePacman()
 
 			objPacman.velocity = vY;
 
-			if (vTiles[pacman.currentTile + BOARD_SIZE.x].type == TILE_EMPTY)
-				objPacman.rotation = 1.57f;
+			if (vTiles[pacman.currentTile + BOARD_SIZE.x].type == TILE_EMPTY) objPacman.rotation = 1.57f;
 
 			objPacman.animSpeed = PACMAN_ANIM_SPEED;
-
 			PacmanMainControlls();
 
-			if (pacman.ai)
-				PacmanAI();
+			if (pacman.ai) PacmanAI();
 
 			break;
 		}
 		case PAC_DYING:
 		{
 			Play::SetSprite(objPacman, SPR_PACMAN_DEAD, 0.1f);
+			pacman.dTimer += 1.0f / 60.0f;
+
+			if (pacman.dTimer > 1.5f)
+			{
+				RestartGame();
+				pacman.visible = true;
+				gState.ghoVisible = true;
+			}
 
 			if (Play::IsAnimationComplete(objPacman))
-				RestartGame();
+				pacman.visible = false;
 
 			objPacman.velocity = { 0, 0 };
-
 			break;
 		}
 	}
@@ -408,6 +513,7 @@ void UpdatePower()
 					ReverseDirection(ghost);
 					ghost.targetTile = Play::RandomRoll(vTiles.size() - 100);
 					ghost.state = GHOST_FRIGHTENED;
+					ghost.eaten = false;
 				}
 			}
 		}
@@ -418,12 +524,20 @@ void UpdatePower()
 void UpdateDots()
 {
 	std::vector <int> vDots = Play::CollectGameObjectIDsByType(TYPE_DOT);
+	std::vector <int> vFruits = Play::CollectGameObjectIDsByType(TYPE_FRUIT);
+
+	if (vDots.size() < 1) gState.state = STATE_WIN;
+	else if (vDots.size() < gState.maxDots / 2 && Play::RandomRoll(100) == 1)
+		if (vFruits.size() < 1 && !gState.fruitEaten)
+			Play::CreateGameObject(TYPE_FRUIT, { vTiles[FRUIT_POS].pos.x - HALF_TILE, vTiles[FRUIT_POS].pos.y }, 10, SPR_PEPPER);	
+
 	for (int dotId : vDots)
 	{
 		GameObject& dot = Play::GetGameObject(dotId);
 
 		if (Play::IsColliding(dot, Play::GetGameObjectByType(TYPE_PACMAN)))
 		{
+			//if (gState.sound) Play::PlayAudio(SND_PAC_CHOMP);
 			dot.type = TYPE_DESTROYED;
 			gState.score += 10;
 		}
@@ -431,6 +545,21 @@ void UpdateDots()
 	}
 }
 
+void UpdateFruits()
+{
+	GameObject& objFruit = Play::GetGameObjectByType(TYPE_FRUIT);
+	objFruit.scale = 2.f;
+
+	if (Play::IsColliding(objFruit, Play::GetGameObjectByType(TYPE_PACMAN)))
+	{
+		if (gState.sound) Play::PlayAudio(SND_FRUIT_EATEN);
+
+		objFruit.type = TYPE_DESTROYED;
+		gState.score += 500;
+		gState.fruitEaten = true;
+	}
+	Play::UpdateGameObject(objFruit);
+}
 
 // Pacman //
 void PacmanTargetReached(GameObject& objPacman)
@@ -547,7 +676,6 @@ void PacmanAISwitch(float time)
 }
 
 
-
 // collisions //
 void VulnerableCollision(Ghost& ghost)
 {
@@ -556,6 +684,8 @@ void VulnerableCollision(Ghost& ghost)
 
 	if (Play::IsColliding(objGhost, objPacman))
 	{
+		if (gState.sound) Play::PlayAudio(SND_GHOST_EATEN);
+
 		ghost.state = GHOST_DEAD;
 		gState.ghostsEaten++;
 		ghost.eaten = true;
@@ -580,8 +710,18 @@ void ChaseCollision()
 		GameObject& objGhost = Play::GetGameObject(ghost.id);
 
 		if (ghost.state == GHOST_SCATTER || ghost.state == GHOST_CHASE)
-			if (Play::IsColliding(objGhost, objPacman))
+			if (Play::IsColliding(objGhost, objPacman) && gState.pState != PAC_DYING)
+			{		
+				if (gState.sound) 
+				{
+					Play::PlayAudio(SND_PAC_DEATH);
+				}
+				gState.lives--;
 				gState.pState = PAC_DYING;
+				gState.ghoVisible = false;
+			}
+
+		//if (gState.lives == 0) gState.state = STATE_GAME_OVER;
 	}
 }
 
@@ -595,26 +735,26 @@ void ActivateGhost(float time)
 		{
 			case GHOST_BLINKY:
 			{
-				if (time > 1.0f)
+				if (time > 4.0f)
 					ghost.activated = true;
 
 				break;
 			}
 			case GHOST_PINKY:
 			{
-				if (time > 2.0f)
+				if (time > 5.0f)
 					ghost.activated = true;
 				break;
 			}
 			case GHOST_INKY:
 			{
-				if (time > 4.0f)
+				if (time > 7.0f)
 					ghost.activated = true;
 				break;
 			}
 			case GHOST_CLYDE:
 			{
-				if (time > 8.0f)
+				if (time > 9.0f)
 					ghost.activated = true;
 				break;
 			}
@@ -680,7 +820,7 @@ void GhostAI(Ghost& ghost)
 			SetGhostNextTile(ghost);
 			GhostMovement(ghost);
 
-			if (gState.ghostTimer > 10.0f)
+			if (gState.ghostTimer > GHOST_VULNERABLE_DURATION)
 			{
 				ReverseDirection(ghost);
 				gState.scatter = false;
@@ -714,7 +854,7 @@ void GhostAI(Ghost& ghost)
 		}
 		case GHOST_DEAD:
 		{
-			Play::SetSprite( Play::GetGameObject(ghost.id), (!ghost.returned) ? SPR_VULNERABLE : ghost.SPRITE, 0.f);
+			Play::SetSprite( Play::GetGameObject(ghost.id), (!ghost.returned) ? SPR_EYES : ghost.SPRITE, 0.f);
 
 			if (ghost.currentTile == GHOST_EXIT_POS)
 			{
@@ -1149,6 +1289,8 @@ bool IsGhostTargetReached(Ghost& ghost)
 
 void ExitGhostHouse(Ghost& ghost)
 {
+	if (gState.vulnerable) ghost.eaten = true;
+
 	switch (ghost.type)
 	{
 		case GHOST_BLINKY:
@@ -1222,6 +1364,7 @@ void ReturnAndExitGhostHouse(Ghost& ghost)
 		if (ghost.dir == DIR_LEFT && objGhost.pos.x < vTiles[GHOST_EXIT_POS].pos.x && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y
 			|| ghost.dir == DIR_RIGHT && objGhost.pos.x > vTiles[GHOST_EXIT_POS + 1].pos.x && objGhost.pos.y < vTiles[CLYDE_SPAWN_POS].pos.y)
 		{
+			//ghost.eaten = true;
 			ghost.returned = false;
 			ghost.currentTile = (ghost.dir == DIR_RIGHT) ? GHOST_EXIT_POS + 1 : GHOST_EXIT_POS;
 			gState.ghostTimer = 0.0f;
@@ -1265,6 +1408,8 @@ void GhostReadyToGo(Ghost& ghost, int pos)
 	ghost.targetTile = pos;
 	ghost.nextTile = pos;
 	ghost.state = GHOST_SCATTER;
+
+	ghost.eaten = (gState.vulnerable) ? true : false;
 }
 
 
@@ -1344,11 +1489,19 @@ void UpdateDestroyed()
 
 void RestartGame()
 {
-	DestroyObjects(TYPE_DOT);
-	DestroyObjects(TYPE_POWER);
+	if (gState.totalRestart)
+	{
+		gState.maxDots = 0;
+		DestroyObjects(TYPE_DOT);
+		DestroyObjects(TYPE_POWER);
+		DestroyObjects(TYPE_FRUIT);
+		vTiles.clear();
+		CreateTiles();
 
-	vTiles.clear();
-	CreateTiles();
+		gState.gSpeed = GHOST_SPEED;
+		gState.pSpeed = PACMAN_SPEED;
+		gState.fruitEaten = false;
+	}
 
 	GameObject& objPacman = Play::GetGameObjectByType(TYPE_PACMAN);
 	objPacman.pos = { vTiles[PACMAN_SPAWN_POS].pos.x - HALF_TILE, vTiles[PACMAN_SPAWN_POS].pos.y };
@@ -1357,23 +1510,18 @@ void RestartGame()
 	Play::SetSprite(objPacman, SPR_PACMAN, 0.f);
 	pacman.currentTile = PACMAN_SPAWN_POS;
 	pacman.nextTile = PACMAN_SPAWN_POS;
+	pacman.wTimer = 0.0f;
+	pacman.dTimer = 0.0f;
 
 	RestartGhosts();
 
 	gState.ghostTimer = 0.0f;
 	gState.powerTimer = 0.0f;
-	gState.time = 0.0f;
-	gState.score = 0;
+	gState.time = (gState.totalRestart) ? 0.f : 2.f;
 	gState.scatter = false;
 	gState.vulnerable = false;
-	gState.maxDots = 0;
-
-	gState.gSpeed = GHOST_SPEED;
-	gState.pSpeed = PACMAN_SPEED;
-
-	gState.state = STATE_PLAY;
+	gState.state = STATE_IDLE;
 	gState.pState = PAC_IDLE;
-
 	gState.gameRestarted = true;
 }
 
@@ -1385,6 +1533,7 @@ void RestartGhosts()
 		ghost.activated = false;
 		ghost.returned = false;
 		ghost.exited = false;
+		ghost.eaten = false;
 
 		GameObject& objGhost = Play::GetGameObject(ghost.id);
 		objGhost.velocity = { 0, 0 };

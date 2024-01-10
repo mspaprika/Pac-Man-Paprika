@@ -6,8 +6,9 @@ constexpr int DISPLAY_WIDTH = 1280;
 constexpr int DISPLAY_HEIGHT = 720;
 constexpr int DISPLAY_SCALE = 1;
 
-// Sprites' names
+// Sprites
 const char* SPR_BACKGROUND = "back";
+const char* SPR_SOUND = "sound";
 
 const char* SPR_PACMAN = "spr_pacman_right";
 const char* SPR_PACMAN_DEAD = "spr_pacman_dead";
@@ -33,7 +34,7 @@ const char* SPR_INKY_MOVE_DOWN = "ghost_inky_down";
 const char* SPR_INKY_MOVE_LEFT = "ghost_inky_left";
 const char* SPR_INKY_MOVE_RIGHT = "ghost_inky_right";
 
-
+const char* SPR_EYES = "eyes";
 const char* SPR_DOT = "dot";
 const char* SPR_POWER = "power";
 
@@ -42,6 +43,13 @@ const char* SPR_CHERRY = "cherry";
 const char* SPR_APPLE = "apple";
 const char* SPR_PEPPER = "pepper";
 const char* SPR_PAPRIKA = "paprika";
+
+// Sounds
+const char* SND_PAC_INTRO = "pacman_beginning";
+const char* SND_PAC_CHOMP = "pacman_chomp";
+const char* SND_PAC_DEATH = "pacman_death";
+const char* SND_GHOST_EATEN = "pacman_eatghost";
+const char* SND_FRUIT_EATEN = "pacman_eatfruit";
 
 
 // Pacman
@@ -57,6 +65,8 @@ const float PACMAN_ANIM_SPEED = { 0.4f };
 const float PACMAN_AI_DURATION = { 0.3f };
 
 // Ghosts
+const float GHOST_VULNERABLE_DURATION = { 7.0f };
+
 const int GHOST_RESPAWN_POS = { 391 };
 const int INKY_SPAWN_POS = { 404 };
 const int CLYDE_SPAWN_POS = { 407 };
@@ -81,11 +91,23 @@ const int HALF_TILE = TILE_SIZE / 2;
 const int BOARD_OFFSET_X = 370;
 const int BOARD_OFFSET_Y = 70;
 
+const int FRUIT_POS = { 490 };
+
 const Vector2D BOARD_SIZE = { 28, 31 };
 
 const int BOARD_LIM_LEFT = BOARD_OFFSET_X;
 const int BOARD_LIM_RIGHT = BOARD_OFFSET_X + ( BOARD_SIZE.x * TILE_SIZE );
 
+const int OFFSET_BOTTOM = 30;
+
+
+const char* MESSAGES[4] =
+{
+	"READY!",
+	"GAME OVER",
+	"YOU WIN!",
+	"PAUSED",
+};
 
 int BOARD[31][28] =
 {
@@ -112,7 +134,7 @@ int BOARD[31][28] =
 	{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
 	{ 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1 },
-	{ 1, 4, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 4, 1 },
+	{ 1, 4, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 4, 1 },
 	{ 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1 },
 	{ 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1 },
 	{ 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1 },
@@ -196,24 +218,31 @@ enum Direction
 struct GameState
 {
 	int score{ 0 };
-	float powerTimer{ 0.0f };
-	float ghostTimer{ 0.0f };
-	float pacTimer{ 0.0f };
-
-	bool vulnerable{ false };
-	bool scatter{ false };
-	bool gameRestarted{ false };
-
-	float time{ 0.0f };
 	int lives{ 5 };
 	int level{ 1 };
 	int maxDots{ 0 };
 	int ghostsEaten{ 0 };
+	int msgID{ 0 };
+
+	float time{ 0.0f };
+	float powerTimer{ 0.0f };
+	float ghostTimer{ 0.0f };
+	float pacTimer{ 0.0f };
+
+	bool msgVisible{ true };
+	bool vulnerable{ false };
+	bool scatter{ false };
+	bool gameRestarted{ false };
+	bool sound{ true };
+	bool visible{ true };
+	bool ghoVisible{ true };
+	bool totalRestart{ false };
+	bool fruitEaten{ false };
 
 	float pSpeed{ PACMAN_SPEED };
 	float gSpeed{ GHOST_SPEED };
 
-	GameFlow state = STATE_PLAY;
+	GameFlow state = STATE_IDLE;
 	PacmanState pState = PAC_IDLE;
 };
 
@@ -248,6 +277,10 @@ struct Pacman
 	int currentTile = PACMAN_SPAWN_POS;
 	int nextTile = PACMAN_SPAWN_POS	;
 
+	float dTimer{ 0.0f };
+	float wTimer{ 0.0f };
+
+	bool visible{ true };
 	bool ai{ false };
 };
 
@@ -267,6 +300,7 @@ void UpdateDots();
 void UpdatePower();
 void PacmanMainControlls();
 void UpdateDestroyed();
+void UpdateFruits();
 
 void SweepNextTile(int id, int oldID);
 void DrawGameStats();
