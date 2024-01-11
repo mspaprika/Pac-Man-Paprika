@@ -154,9 +154,7 @@ void CreateGameObjects()
 	blinky.state = GHOST_IDLE;
 	blinky.dir = DIR_LEFT;
 	blinky.SPRITE = SPR_BLINKY_MOVE_LEFT;
-	blinky.currentTile = GHOST_EXIT_POS;
-	blinky.nextTile = GHOST_EXIT_POS;
-	blinky.targetTile = GHOST_EXIT_POS;
+
 
 	vGhosts.push_back(blinky);
 
@@ -167,9 +165,6 @@ void CreateGameObjects()
 	pinky.state = GHOST_IDLE;
 	pinky.dir = DIR_UP;
 	pinky.SPRITE = SPR_PINKY_MOVE_UP;
-	pinky.currentTile = GHOST_EXIT_POS;
-	pinky.nextTile = GHOST_EXIT_POS;
-	pinky.targetTile = GHOST_EXIT_POS;
 
 
 	vGhosts.push_back(pinky);
@@ -181,12 +176,9 @@ void CreateGameObjects()
 	inky.state = GHOST_IDLE;
 	inky.dir = DIR_RIGHT;
 	inky.SPRITE = SPR_INKY_MOVE_RIGHT;
-	inky.currentTile = GHOST_EXIT_POS;
-	inky.nextTile = GHOST_EXIT_POS;
-	inky.targetTile = GHOST_EXIT_POS;
-
 
 	vGhosts.push_back(inky);
+
 
 	id = Play::CreateGameObject(TYPE_GHOST, { vTiles[CLYDE_SPAWN_POS].pos.x + (TILE_SIZE / 2), vTiles[CLYDE_SPAWN_POS].pos.y }, 10, SPR_CLYDE_MOVE_LEFT);
 	Ghost clyde;
@@ -195,9 +187,6 @@ void CreateGameObjects()
 	clyde.state = GHOST_IDLE;
 	clyde.dir = DIR_LEFT;
 	clyde.SPRITE = SPR_CLYDE_MOVE_LEFT;
-	clyde.currentTile = GHOST_EXIT_POS;
-	clyde.nextTile = GHOST_EXIT_POS;
-	clyde.targetTile = GHOST_EXIT_POS;
 
 	vGhosts.push_back(clyde);
 }
@@ -752,6 +741,7 @@ void GhostAI(Ghost& ghost)
 	{
 		case GHOST_IDLE:
 		{
+			ghost.eaten = (gState.vulnerable) ?  true :  false;
 			SetGhostSprites(ghost);
 			if (ghost.activated)
 				ExitGhostHouse(ghost);
@@ -1176,30 +1166,22 @@ void GhostNextTileReached(Ghost& ghost)
 	{
 		case DIR_UP:
 		{
-			if (objGhost.pos.y < vTiles[ghost.nextTile].pos.y)
-				GhostSettled(ghost);
-
+			if (objGhost.pos.y < vTiles[ghost.nextTile].pos.y) GhostSettled(ghost);
 			break;
 		}
 		case DIR_DOWN:
 		{
-			if (objGhost.pos.y > vTiles[ghost.nextTile].pos.y)
-				GhostSettled(ghost);
-
+			if (objGhost.pos.y > vTiles[ghost.nextTile].pos.y) GhostSettled(ghost);
 			break;
 		}
 		case DIR_LEFT:
 		{
-			if (objGhost.pos.x < vTiles[ghost.nextTile].pos.x)
-				GhostSettled(ghost);
-		
+			if (objGhost.pos.x < vTiles[ghost.nextTile].pos.x) GhostSettled(ghost);
 			break;
 		}
 		case DIR_RIGHT:
 		{
-			if (objGhost.pos.x > vTiles[ghost.nextTile].pos.x)
-				GhostSettled(ghost);
-
+			if (objGhost.pos.x > vTiles[ghost.nextTile].pos.x) GhostSettled(ghost);
 			break;
 		}
 	}
@@ -1225,6 +1207,7 @@ bool IsGhostTargetReached(Ghost& ghost)
 void ExitGhostHouse(Ghost& ghost)
 {
 	if (gState.vulnerable) ghost.eaten = true;
+	ghost.exited = false;
 
 	switch (ghost.type)
 	{
@@ -1341,8 +1324,8 @@ void GhostReadyToGo(Ghost& ghost, int pos)
 	ghost.currentTile = pos;
 	ghost.targetTile = pos;
 	ghost.nextTile = pos;
+	ghost.exited = true;
 	ghost.state = GHOST_SCATTER;
-	ghost.eaten = (gState.vulnerable) ? true : false;
 }
 
 
