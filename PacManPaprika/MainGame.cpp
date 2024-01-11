@@ -33,8 +33,7 @@ bool MainGameUpdate( float elapsedTime )
 	Draw();
 	ActivateGhost(gState.time);
 
-	if (Play::KeyPressed(VK_TAB))
-		RestartGame();
+	if (Play::KeyPressed(VK_TAB)) TotalRestart();
 
 	return Play::KeyDown( VK_ESCAPE );
 }
@@ -57,9 +56,7 @@ void UpdateGameStates()
 	{
 		case STATE_IDLE:
 		{
-			gState.visible = true;
-			gState.ghoVisible = true;
-			pacman.visible = true;
+			AllVisible();
 			gState.msgID = 0;
 			gState.msgVisible = true;
 
@@ -83,25 +80,18 @@ void UpdateGameStates()
 		}
 		case STATE_GAME_OVER:
 		{
-			gState.visible = false;
-			gState.ghoVisible = false;
-			pacman.visible = false;
+			AllInvisible();
 			gState.msgID = 1;
 			gState.msgVisible = true;
 
 			if (Play::KeyPressed(VK_SPACE))
 			{
-				gState.totalRestart = true;
-				RestartGame();
-				gState.totalRestart = false;
+				TotalRestart();
 				gState.level = 1;
-				gState.ghoVisible = true;
-				pacman.visible = true;
-				gState.visible = true;
-				gState.lives = 5;
+				gState.lives = TOTAL_LIVES;
 				gState.score = 0;
 				gState.msgVisible = false;
-				Play::PlayAudio(SND_PAC_INTRO);
+				AllVisible();
 				gState.state = STATE_IDLE;
 			}
 
@@ -109,26 +99,20 @@ void UpdateGameStates()
 		}
 		case STATE_WIN:
 		{
-			gState.visible = false;
-			gState.ghoVisible = false;
-			pacman.visible = false;
+			AllInvisible();
 			gState.msgID = 2;
 			gState.msgVisible = true;
 			pacman.wTimer += 1.0f / 60.0f;
 
 			if (pacman.wTimer > 2.f)
 			{
-				gState.totalRestart = true;
-				RestartGame();
-				gState.totalRestart = false;
+				TotalRestart();
 				gState.level++;
-				gState.lives = 5;
-				gState.pSpeed += 0.5f;
-				gState.gSpeed += 0.5f;
-				gState.ghoVisible = true;
-				pacman.visible = true;
-				gState.visible = true;
-				Play::PlayAudio(SND_PAC_INTRO);
+				gState.lives = TOTAL_LIVES;
+				gState.pSpeed += PACMAN_SPEED_INCREASE;
+				gState.gSpeed += GHOST_SPEED_INCREASE;
+				AllVisible();
+				
 				for (Ghost& ghost : vGhosts) SetGhostSprites(ghost);
 
 				gState.state = STATE_IDLE;
@@ -138,17 +122,13 @@ void UpdateGameStates()
 		}
 		case STATE_PAUSE:
 		{
-			gState.visible = false;
-			gState.ghoVisible = false;
-			pacman.visible = false;
+			AllInvisible();
 			gState.msgID = 3;
 			gState.msgVisible = true;
 
 			if (Play::KeyPressed(VK_SPACE))
 			{
-				gState.ghoVisible = true;
-				pacman.visible = true;
-				gState.visible = true;
+				AllVisible();
 				gState.msgVisible = false;
 				gState.state = STATE_PLAY;
 			}
@@ -174,6 +154,9 @@ void CreateGameObjects()
 	blinky.state = GHOST_IDLE;
 	blinky.dir = DIR_LEFT;
 	blinky.SPRITE = SPR_BLINKY_MOVE_LEFT;
+	blinky.currentTile = GHOST_EXIT_POS;
+	blinky.nextTile = GHOST_EXIT_POS;
+	blinky.targetTile = GHOST_EXIT_POS;
 
 	vGhosts.push_back(blinky);
 
@@ -184,6 +167,10 @@ void CreateGameObjects()
 	pinky.state = GHOST_IDLE;
 	pinky.dir = DIR_UP;
 	pinky.SPRITE = SPR_PINKY_MOVE_UP;
+	pinky.currentTile = GHOST_EXIT_POS;
+	pinky.nextTile = GHOST_EXIT_POS;
+	pinky.targetTile = GHOST_EXIT_POS;
+
 
 	vGhosts.push_back(pinky);
 
@@ -194,6 +181,10 @@ void CreateGameObjects()
 	inky.state = GHOST_IDLE;
 	inky.dir = DIR_RIGHT;
 	inky.SPRITE = SPR_INKY_MOVE_RIGHT;
+	inky.currentTile = GHOST_EXIT_POS;
+	inky.nextTile = GHOST_EXIT_POS;
+	inky.targetTile = GHOST_EXIT_POS;
+
 
 	vGhosts.push_back(inky);
 
@@ -204,6 +195,9 @@ void CreateGameObjects()
 	clyde.state = GHOST_IDLE;
 	clyde.dir = DIR_LEFT;
 	clyde.SPRITE = SPR_CLYDE_MOVE_LEFT;
+	clyde.currentTile = GHOST_EXIT_POS;
+	clyde.nextTile = GHOST_EXIT_POS;
+	clyde.targetTile = GHOST_EXIT_POS;
 
 	vGhosts.push_back(clyde);
 }
@@ -211,11 +205,9 @@ void CreateGameObjects()
 void Draw()
 {
 	Play::ClearDrawingBuffer(Play::cBlack);
-
 	Play::DrawSprite(SPR_BACKGROUND, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 1);
 
-	if (gState.sound)
-		Play::DrawSpriteRotated(SPR_SOUND, { 30, 30 }, 0, 0.f, 2.f);
+	if (gState.sound) Play::DrawSpriteRotated(SPR_SOUND, { 30, 30 }, 0, 0.f, 2.f);
 
 	// Draw Tile Map //
 	//for (Tile& tile : vTiles)
@@ -227,16 +219,11 @@ void Draw()
 	if (gState.ghoVisible) DrawGameObjects(TYPE_GHOST);
 	if (pacman.visible) DrawGameObjects(TYPE_PACMAN);
 
-	if (gState.lives > 4)
-		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
-	if (gState.lives > 3)
-		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 40, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
-	if (gState.lives > 2)
-		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 80, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
-	if (gState.lives > 1)
-		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 120, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
-	if (gState.lives > 0)
-		Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 160, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 4) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 3) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 40, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 2) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 80, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 1) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 120, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
+	if (gState.lives > 0) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 160, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
 
 	Play::DrawSpriteRotated(SPR_PEPPER, { DISPLAY_WIDTH / 2 + 140, OFFSET_BOTTOM }, 0, 0.f, 2.f);
 
@@ -244,7 +231,7 @@ void Draw()
 	//Play::DrawCircle(ghost.pos, 15, Play::cRed);
 	//Play::DrawCircle(dot.pos, 5, Play::cWhite);
 
-	GameObject& objGhost = Play::GetGameObject(vGhosts[0].id);
+	//GameObject& objGhost = Play::GetGameObject(vGhosts[0].id);
 	//Play::DrawCircle(objGhost.pos, 10, Play::cWhite);
 
 	DrawGameStats();
@@ -255,12 +242,7 @@ void Draw()
 void DrawGameObjects(int TYPE)
 {
 	std::vector <int> vObjects = Play::CollectGameObjectIDsByType(TYPE);
-
-	for (int objId : vObjects)
-	{
-		GameObject& obj = Play::GetGameObject(objId);
-		Play::DrawObjectRotated(obj);
-	}
+	for (int objId : vObjects) Play::DrawObjectRotated(Play::GetGameObject(objId));
 }
 
 void DrawGameStats()
@@ -268,7 +250,7 @@ void DrawGameStats()
 	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
 	Play::DrawFontText( "64", "LEVEL: " + std::to_string(gState.level), { BOARD_LIM_RIGHT - 20, 30 }, Play::RIGHT );
 
-	//Play::DrawFontText( "64", "next: " + std::to_string(vGhosts[0].nextTile), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
+	//Play::DrawFontText( "64", "inky: " + std::to_string(vGhosts[2].exited), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
 	//Play::DrawFontText( "64", "g state: " + std::to_string(gState.state), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
 	//Play::DrawFontText( "64", "direction: " + std::to_string(pacman.nextDir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	//Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
@@ -276,7 +258,6 @@ void DrawGameStats()
 
 	if (gState.msgVisible)
 		Play::DrawFontText("64", MESSAGES[gState.msgID], { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 50 }, Play::CENTRE);
-
 }
 
 void CreateTiles()
@@ -334,6 +315,30 @@ void CreateTiles()
 			tileId++;
 		}
 	}
+}
+
+
+// Helper functions //
+void TotalRestart()
+{
+	gState.totalRestart = true;
+	RestartGame();
+	gState.totalRestart = false;
+	Play::PlayAudio(SND_PAC_INTRO);
+}
+
+void AllVisible()
+{
+	gState.ghoVisible = true;
+	pacman.visible = true;
+	gState.visible = true;
+}
+
+void AllInvisible()
+{
+	gState.ghoVisible = false;
+	pacman.visible = false;
+	gState.visible = false;
 }
 
 
@@ -473,14 +478,10 @@ void UpdateGhosts()
 {
 	for (Ghost& ghost : vGhosts)
 	{
-		GameObject& objGhost = Play::GetGameObject(ghost.id);
-
-		if (ghost.currentTile >= GHOST_EXIT_POS)
-			ghost.exited = true;
+		if (ghost.currentTile >= GHOST_EXIT_POS) ghost.exited = true;
 		
 		GhostAI(ghost);
-
-		Play::UpdateGameObject(objGhost);
+		Play::UpdateGameObject(Play::GetGameObject(ghost.id));
 	}
 }
 
@@ -490,8 +491,7 @@ void UpdatePower()
 	{
 		gState.powerTimer += 1.0f / 60.0f;
 
-		if (gState.powerTimer > 10.0f)
-			gState.vulnerable = false;		
+		if (gState.powerTimer > 10.0f) gState.vulnerable = false;		
 	}
 
 	std::vector <int> vPower = Play::CollectGameObjectIDsByType(TYPE_POWER);
@@ -564,7 +564,6 @@ void UpdateFruits()
 // Pacman //
 void PacmanTargetReached(GameObject& objPacman)
 {
-	objPacman.pos = vTiles[pacman.nextTile].pos;
 	vTiles[pacman.nextTile].occupied = true;
 	pacman.currentTile = pacman.nextTile;
 }
@@ -611,7 +610,10 @@ void PacmanMainControlls()
 void SweepNextTile(int id, int oldID)
 {
 	if (vTiles[id].type != TILE_EMPTY)
-		 gState.pState = PAC_IDLE;
+	{
+		gState.pState = PAC_IDLE;
+		Play::GetGameObjectByType(TYPE_PACMAN).pos = vTiles[pacman.currentTile].pos;
+	}
 
 	else if (!vTiles[id].occupied)
 	{
@@ -622,43 +624,42 @@ void SweepNextTile(int id, int oldID)
 
 void SweepNewTile(int id)
 {
+	GameObject& objPacman = Play::GetGameObjectByType(TYPE_PACMAN);
+
 	if (!vTiles[id].occupied && vTiles[id].type == TILE_EMPTY)
 	{
 		pacman.nextTile = id;
 		vTiles[pacman.currentTile].occupied = false;
 		 
-		if (pacman.dir == DIR_DOWN) gState.pState = PAC_MOVE_DOWN;
-		else if (pacman.dir == DIR_UP) gState.pState = PAC_MOVE_UP;
-		else if (pacman.dir == DIR_LEFT) gState.pState = PAC_MOVE_LEFT;
-		else if (pacman.dir == DIR_RIGHT) gState.pState = PAC_MOVE_RIGHT;
+		if (pacman.dir == DIR_DOWN) 
+		{
+			gState.pState = PAC_MOVE_DOWN;
+			objPacman.pos.x = vTiles[pacman.currentTile].pos.x;
+		}
+		else if (pacman.dir == DIR_UP) 
+		{
+			gState.pState = PAC_MOVE_UP;
+			objPacman.pos.x = vTiles[pacman.currentTile].pos.x;
+		}
+		else if (pacman.dir == DIR_LEFT) 
+		{
+			gState.pState = PAC_MOVE_LEFT;
+			objPacman.pos.y = vTiles[pacman.currentTile].pos.y;
+		}
+		else if (pacman.dir == DIR_RIGHT) 
+		{
+			gState.pState = PAC_MOVE_RIGHT;
+			objPacman.pos.y = vTiles[pacman.currentTile].pos.y;
+		}
 	}
 }
 
 void PacmanAI()
 {
-	switch (pacman.nextDir)
-	{
-		case DIR_LEFT:
-		{
-			SweepNewTile(pacman.currentTile - 1);
-			break;
-		}
-		case DIR_RIGHT:
-		{
-			SweepNewTile(pacman.currentTile + 1);
-			break;
-		}
-		case DIR_UP:
-		{
-			SweepNewTile(pacman.currentTile - BOARD_SIZE.x);
-			break;
-		}
-		case DIR_DOWN:
-		{
-			SweepNewTile(pacman.currentTile + BOARD_SIZE.x);
-			break;
-		}
-	}
+	if (pacman.nextDir == DIR_LEFT) SweepNewTile(pacman.currentTile - 1);
+	else if (pacman.nextDir == DIR_RIGHT) SweepNewTile(pacman.currentTile + 1);
+	else if (pacman.nextDir == DIR_UP) SweepNewTile(pacman.currentTile - BOARD_SIZE.x);
+	else if (pacman.nextDir == DIR_DOWN) SweepNewTile(pacman.currentTile + BOARD_SIZE.x);
 }
 
 void PacmanAISwitch(float time)
@@ -712,16 +713,12 @@ void ChaseCollision()
 		if (ghost.state == GHOST_SCATTER || ghost.state == GHOST_CHASE)
 			if (Play::IsColliding(objGhost, objPacman) && gState.pState != PAC_DYING)
 			{		
-				if (gState.sound) 
-				{
-					Play::PlayAudio(SND_PAC_DEATH);
-				}
+				if (gState.sound) Play::PlayAudio(SND_PAC_DEATH);
+
 				gState.lives--;
 				gState.pState = PAC_DYING;
 				gState.ghoVisible = false;
 			}
-
-		//if (gState.lives == 0) gState.state = STATE_GAME_OVER;
 	}
 }
 
@@ -731,48 +728,21 @@ void ActivateGhost(float time)
 {
 	for (Ghost& ghost : vGhosts)
 	{
-		switch (ghost.type)
-		{
-			case GHOST_BLINKY:
-			{
-				if (time > 4.0f)
-					ghost.activated = true;
-
-				break;
-			}
-			case GHOST_PINKY:
-			{
-				if (time > 5.0f)
-					ghost.activated = true;
-				break;
-			}
-			case GHOST_INKY:
-			{
-				if (time > 7.0f)
-					ghost.activated = true;
-				break;
-			}
-			case GHOST_CLYDE:
-			{
-				if (time > 9.0f)
-					ghost.activated = true;
-				break;
-			}
-		}
+		if (ghost.type == GHOST_BLINKY && time > 4.0f) ghost.activated = true;
+		else if (ghost.type == GHOST_PINKY && time > 5.0f) ghost.activated = true;
+		else if (ghost.type == GHOST_INKY && time > 7.0f) ghost.activated = true;
+		else if (ghost.type == GHOST_CLYDE && time > 9.0f) ghost.activated = true;
 	}
 }
 
 void GhostScatterControl()
 {
-	if (gState.scatter)
-		gState.ghostTimer += 1.0f / 60.0f;
+	(gState.scatter) ? gState.ghostTimer += 1.0f / 60.0f : gState.ghostTimer = 0.0f;
 
-	if (Play::RandomRoll(2000) == 1)
+	if (Play::RandomRoll(SCATTER_POSSIBILITY) == 1)
 	{
 		for (Ghost& ghost : vGhosts)
 			if (ghost.state == GHOST_CHASE) ghost.state = GHOST_SCATTER;
-
-		gState.ghostTimer = 0.0f;
 	}
 }
 
@@ -820,7 +790,7 @@ void GhostAI(Ghost& ghost)
 			SetGhostNextTile(ghost);
 			GhostMovement(ghost);
 
-			if (gState.ghostTimer > GHOST_VULNERABLE_DURATION)
+			if (gState.ghostTimer > GHOST_SCATTER_DURATION)
 			{
 				ReverseDirection(ghost);
 				gState.scatter = false;
@@ -947,17 +917,20 @@ void SetChaseTarget(Ghost& ghost)
 		}
 		case GHOST_PINKY:
 		{
-			ghost.targetTile = pacman.currentTile;
+			ghost.targetTile = (pacman.currentTile < vTiles.size() - PINKY_TARGET_OFFSET) ? 
+				pacman.currentTile + PINKY_TARGET_OFFSET: pacman.currentTile - PINKY_TARGET_OFFSET;
 			break;
 		}
 		case GHOST_INKY:
 		{
-			ghost.targetTile = pacman.currentTile;
+			ghost.targetTile = (pacman.currentTile > BOARD_SIZE.x * INKY_TARGET_OFFSET) ? 
+				pacman.currentTile - BOARD_SIZE.x * INKY_TARGET_OFFSET : pacman.currentTile + BOARD_SIZE.x * INKY_TARGET_OFFSET;
 			break;
 		}
 		case GHOST_CLYDE:
 		{
-			ghost.targetTile = pacman.currentTile;
+			ghost.targetTile = (vGhosts[0].currentTile < vTiles.size() - CLYDE_TARGET_OFFSET ?
+				vGhosts[0].currentTile + CLYDE_TARGET_OFFSET : vGhosts[0].currentTile - CLYDE_TARGET_OFFSET);
 			break;
 		}
 	}
@@ -965,29 +938,10 @@ void SetChaseTarget(Ghost& ghost)
 
 void SetScatterTarget(Ghost& ghost)
 {
-	switch (ghost.type)
-	{
-		case GHOST_BLINKY:
-		{
-			ghost.targetTile = BLINKY_SCATTER_POS;
-			break;
-		}
-		case GHOST_PINKY:
-		{
-			ghost.targetTile = PINKY_SCATTER_POS;
-			break;
-		}
-		case GHOST_INKY:
-		{
-			ghost.targetTile = INKY_SCATTER_POS;
-			break;
-		}
-		case GHOST_CLYDE:
-		{	
-			ghost.targetTile = CLYDE_SCATTER_POS;
-			break;
-		}
-	}
+	if (ghost.type == GHOST_BLINKY) ghost.targetTile = BLINKY_SCATTER_POS;
+	else if (ghost.type == GHOST_PINKY) ghost.targetTile = PINKY_SCATTER_POS;
+	else if (ghost.type == GHOST_INKY) ghost.targetTile = INKY_SCATTER_POS;
+	else if (ghost.type == GHOST_CLYDE) ghost.targetTile = CLYDE_SCATTER_POS;
 }
 
 void SetGhostDirection(Ghost& ghost)
@@ -1208,29 +1162,10 @@ void GhostMovement(Ghost& ghost)
 	Vector2f vY = { 0.0f, gState.gSpeed };
 	Vector2f vX = { gState.gSpeed, 0.0f };
 
-	switch (ghost.dir)
-	{
-		case DIR_UP:
-		{
-			objGhost.velocity = vY * (-1);
-			break;
-		}
-		case DIR_DOWN:
-		{
-			objGhost.velocity = vY;
-			break;
-		}
-		case DIR_LEFT:
-		{
-			objGhost.velocity = vX * (-1);
-			break;
-		}
-		case DIR_RIGHT:
-		{
-			objGhost.velocity = vX;
-			break;
-		}
-	}
+	if (ghost.dir == DIR_UP) objGhost.velocity = vY * (-1);
+	else if (ghost.dir == DIR_DOWN) objGhost.velocity = vY;
+	else if (ghost.dir == DIR_LEFT) objGhost.velocity = vX * (-1);
+	else if (ghost.dir == DIR_RIGHT) objGhost.velocity = vX;
 }
 
 void GhostNextTileReached(Ghost& ghost)
@@ -1403,12 +1338,10 @@ void GhostReadyToGo(Ghost& ghost, int pos)
 	GameObject& objGhost = Play::GetGameObject(ghost.id);
 
 	objGhost.pos = vTiles[pos].pos;
-	vTiles[GHOST_EXIT_POS].ghostOccupied = true;
 	ghost.currentTile = pos;
 	ghost.targetTile = pos;
 	ghost.nextTile = pos;
 	ghost.state = GHOST_SCATTER;
-
 	ghost.eaten = (gState.vulnerable) ? true : false;
 }
 
@@ -1425,16 +1358,15 @@ float GetDistance(Point2D pos1, Point2D pos2)
 void ReverseDirection(Ghost& ghost)
 {
 	GameObject& objGhost = Play::GetGameObject(ghost.id);
-	objGhost.pos = vTiles[ghost.currentTile].pos;
-
+	
 	switch (ghost.dir)
 	{
 		case DIR_UP:
 		{
 			if (vTiles[ghost.currentTile + BOARD_SIZE.x].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY) ghost.dir = DIR_RIGHT;
-				else ghost.dir = DIR_LEFT;
+				ghost.dir = (vTiles[ghost.currentTile - 1].type != TILE_EMPTY) ? DIR_RIGHT : DIR_LEFT;
+				objGhost.pos = vTiles[ghost.currentTile].pos;
 			} 
 			else ghost.dir = DIR_DOWN;
 
@@ -1444,8 +1376,8 @@ void ReverseDirection(Ghost& ghost)
 		{
 			if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY) ghost.dir = DIR_RIGHT;
-				else ghost.dir = DIR_LEFT;
+				ghost.dir = (vTiles[ghost.currentTile - 1].type != TILE_EMPTY) ? DIR_RIGHT : DIR_LEFT;
+				objGhost.pos = vTiles[ghost.currentTile].pos;
 			}
 			else ghost.dir = DIR_UP;
 
@@ -1455,8 +1387,8 @@ void ReverseDirection(Ghost& ghost)
 		{
 			if (vTiles[ghost.currentTile + 1].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY) ghost.dir = DIR_DOWN;
-				else ghost.dir = DIR_UP;
+				ghost.dir = (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY) ? DIR_DOWN : DIR_UP;
+				objGhost.pos = vTiles[ghost.currentTile].pos;
 			}
 			else ghost.dir = DIR_RIGHT;
 
@@ -1466,8 +1398,8 @@ void ReverseDirection(Ghost& ghost)
 		{
 			if (vTiles[ghost.currentTile - 1].type != TILE_EMPTY)
 			{
-				if (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY) ghost.dir = DIR_DOWN;
-				else ghost.dir = DIR_UP;
+				ghost.dir = (vTiles[ghost.currentTile - BOARD_SIZE.x].type != TILE_EMPTY) ? DIR_DOWN : DIR_UP;
+				objGhost.pos = vTiles[ghost.currentTile].pos;
 			}
 			else ghost.dir = DIR_LEFT;
 
@@ -1479,12 +1411,7 @@ void ReverseDirection(Ghost& ghost)
 void UpdateDestroyed()
 {
 	std::vector <int> vDestroyed = Play::CollectGameObjectIDsByType(TYPE_DESTROYED);
-
-	for (int id : vDestroyed)
-	{
-		GameObject& obj = Play::GetGameObject(id);
-		Play::DestroyGameObject(id);
-	}
+	for (int id : vDestroyed) Play::DestroyGameObject(id);
 }
 
 void RestartGame()
@@ -1536,6 +1463,7 @@ void RestartGhosts()
 		ghost.eaten = false;
 
 		GameObject& objGhost = Play::GetGameObject(ghost.id);
+		Play::SetSprite(objGhost, ghost.SPRITE, 0.f);
 		objGhost.velocity = { 0, 0 };
 
 		switch (ghost.type)
@@ -1571,6 +1499,5 @@ void RestartGhosts()
 void DestroyObjects(int TYPE)
 {
 	std::vector <int> vObjects = Play::CollectGameObjectIDsByType(TYPE);
-	for (int id : vObjects)
-		Play::DestroyGameObject(id);
+	for (int id : vObjects) Play::DestroyGameObject(id);
 }

@@ -66,12 +66,18 @@ const float PACMAN_AI_DURATION = { 0.3f };
 
 // Ghosts
 const float GHOST_VULNERABLE_DURATION = { 7.0f };
+const float GHOST_SCATTER_DURATION = { 10.0f };
+const int SCATTER_POSSIBILITY = { 3600 }; // once a minute
 
 const int GHOST_RESPAWN_POS = { 391 };
 const int INKY_SPAWN_POS = { 404 };
 const int CLYDE_SPAWN_POS = { 407 };
 const int PINKY_SPAWN_POS = { 405 };
 const int BLINKY_SPAWN_POS = { 321 };
+
+const int PINKY_TARGET_OFFSET = { 4 };
+const int INKY_TARGET_OFFSET = { 3 };
+const int CLYDE_TARGET_OFFSET = { 5 };
 
 const float GHOST_SPEED = { 1.5f };
 const float GHOST_DEAD_SPEED = { 3.0f };
@@ -82,8 +88,8 @@ const Vector2f GHOST_VELOCITY_Y = { 0.0f, GHOST_SPEED };
 const int GHOST_EXIT_POS = { 321 };
 const int BLINKY_SCATTER_POS = { 0 };
 const int PINKY_SCATTER_POS = { 27 };
-const int INKY_SCATTER_POS = { 841 };
-const int CLYDE_SCATTER_POS = { 867 };
+const int CLYDE_SCATTER_POS = { 841 };
+const int INKY_SCATTER_POS = { 867 };
 
 // Board
 const int TILE_SIZE = 20;
@@ -91,14 +97,19 @@ const int HALF_TILE = TILE_SIZE / 2;
 const int BOARD_OFFSET_X = 370;
 const int BOARD_OFFSET_Y = 70;
 
-const int FRUIT_POS = { 490 };
 
 const Vector2D BOARD_SIZE = { 28, 31 };
 
 const int BOARD_LIM_LEFT = BOARD_OFFSET_X;
 const int BOARD_LIM_RIGHT = BOARD_OFFSET_X + ( BOARD_SIZE.x * TILE_SIZE );
 
+// other
+const int FRUIT_POS = { 490 };
 const int OFFSET_BOTTOM = 30;
+
+const int TOTAL_LIVES = { 5 };
+const float GHOST_SPEED_INCREASE = { 0.5f };	
+const float PACMAN_SPEED_INCREASE = { 0.25f };
 
 
 const char* MESSAGES[4] =
@@ -330,3 +341,6 @@ void ChaseCollision();
 void SweepNewTile(int id);
 void PacmanAI();
 void PacmanAISwitch(float time);
+void TotalRestart();
+void AllVisible();
+void AllInvisible();
