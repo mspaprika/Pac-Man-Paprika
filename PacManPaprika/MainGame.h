@@ -66,7 +66,7 @@ const float PACMAN_ANIM_SPEED = { 0.4f };
 const float PACMAN_AI_DURATION = { 0.3f };
 
 // Ghosts
-const float GHOST_VULNERABLE_DURATION = { 17.0f };
+const float GHOST_VULNERABLE_DURATION = { 10.0f };
 const float GHOST_SCATTER_DURATION = { 10.0f };
 const int SCATTER_POSSIBILITY = { 3600 }; // once a minute
 
@@ -240,6 +240,7 @@ struct GameState
 	float powerTimer{ 0.0f };
 	float ghostTimer{ 0.0f };
 	float pacTimer{ 0.0f };
+	float timeLeft{ 0.0f };
 
 	bool msgVisible{ true };
 	bool vulnerable{ false };
