@@ -18,7 +18,6 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 
 	CreateTiles();
 	CreateGameObjects();
-	//Play::PlayAudio(SND_SILENCE);
 	Play::StartAudioLoop(SND_SILENCE);
 
 	if (gState.sound) Play::PlayAudio(SND_PAC_INTRO);
@@ -29,14 +28,19 @@ bool MainGameUpdate( float elapsedTime )
 {
 	gState.time += elapsedTime;
 
-	//SilenceControl();
 	PacmanAISwitch(elapsedTime);
 	GhostScatterControl();
 	UpdateGameStates();
 	Draw();
 	ActivateGhost(gState.time);
 
-	if (Play::KeyPressed(VK_TAB)) TotalRestart();
+	if (Play::KeyPressed(VK_TAB)) 
+	{
+		TotalRestart();
+		gState.level = 1;
+		gState.lives = TOTAL_LIVES;
+		gState.score = 0;	
+	}
 
 	return Play::KeyDown( VK_ESCAPE );
 }
@@ -252,7 +256,7 @@ void DrawGameStats()
 
 	//Play::DrawFontText("64", "time: " + std::to_string((int)gState.time), { DISPLAY_WIDTH - 150, 50 }, Play::CENTRE);
 	//Play::DrawFontText( "64", "g state: " + std::to_string(gState.state), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
-	Play::DrawFontText( "64", "pacman: " + std::to_string(gState.pState), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
+	//Play::DrawFontText( "64", "pacman: " + std::to_string(gState.pState), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	//Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
 	//Play::DrawFontText("64", "dots: " + std::to_string(gState.maxDots), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
 
@@ -339,18 +343,6 @@ void AllInvisible()
 	gState.ghoVisible = false;
 	pacman.visible = false;
 	gState.visible = false;
-}
-
-void SilenceControl()
-{
-	int time = (int)gState.time;
-	if (time % 177 == 0) gState.threeMinsPassed = true;
-
-	if (gState.threeMinsPassed)
-	{
-		Play::PlayAudio(SND_SILENCE);
-		gState.threeMinsPassed = false;
-	}
 }
 
 
@@ -519,7 +511,7 @@ void UpdatePower()
 			gState.score += 50;
 			gState.vulnerable = true;
 			gState.powerTimer = 0.0f;
-			gState.timeLeft = GHOST_VULNERABLE_DURATION;
+			gState.timeLeft = GHOST_VULNERABLE_DURATION + 1;
 
 			for (Ghost& ghost : vGhosts)
 			{
