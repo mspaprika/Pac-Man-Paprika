@@ -18,6 +18,7 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 
 	CreateTiles();
 	CreateGameObjects();
+	Play::PlayAudio(SND_SILENCE);
 
 	if (gState.sound) Play::PlayAudio(SND_PAC_INTRO);
 }
@@ -27,6 +28,7 @@ bool MainGameUpdate( float elapsedTime )
 {
 	gState.time += elapsedTime;
 
+	SilenceControl();
 	PacmanAISwitch(elapsedTime);
 	GhostScatterControl();
 	UpdateGameStates();
@@ -51,6 +53,7 @@ void UpdateGameStates()
 {
 	if (gState.lives == 0) gState.state = STATE_GAME_OVER;
 	if (Play::KeyPressed(VK_F2)) gState.sound = !gState.sound;
+
 
 	switch (gState.state)
 	{
@@ -239,7 +242,7 @@ void DrawGameStats()
 	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
 	Play::DrawFontText( "64", "LEVEL: " + std::to_string(gState.level), { BOARD_LIM_RIGHT - 20, 30 }, Play::RIGHT );
 
-	//Play::DrawFontText( "64", "inky: " + std::to_string(vGhosts[2].exited), { DISPLAY_WIDTH - 150, 50}, Play::CENTRE);
+	Play::DrawFontText("64", "time: " + std::to_string((int)gState.time), { DISPLAY_WIDTH - 150, 50 }, Play::CENTRE);
 	//Play::DrawFontText( "64", "g state: " + std::to_string(gState.state), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
 	//Play::DrawFontText( "64", "direction: " + std::to_string(pacman.nextDir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	//Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
@@ -328,6 +331,18 @@ void AllInvisible()
 	gState.ghoVisible = false;
 	pacman.visible = false;
 	gState.visible = false;
+}
+
+void SilenceControl()
+{
+	int time = (int)gState.time;
+	if (time % 177 == 0) gState.threeMinsPassed = true;
+
+	if (gState.threeMinsPassed)
+	{
+		Play::PlayAudio(SND_SILENCE);
+		gState.threeMinsPassed = false;
+	}
 }
 
 
@@ -526,7 +541,7 @@ void UpdateDots()
 
 		if (Play::IsColliding(dot, Play::GetGameObjectByType(TYPE_PACMAN)))
 		{
-			//if (gState.sound) Play::PlayAudio(SND_PAC_CHOMP);
+			if (gState.sound) Play::PlayAudio(SND_PAC_CHOMP);
 			dot.type = TYPE_DESTROYED;
 			gState.score += 10;
 		}
@@ -1433,6 +1448,8 @@ void RestartGame()
 	gState.state = STATE_IDLE;
 	gState.pState = PAC_IDLE;
 	gState.gameRestarted = true;
+
+	Play::PlayAudio(SND_SILENCE);
 }
 
 void RestartGhosts()
