@@ -251,7 +251,6 @@ struct GameState
 	bool ghoVisible{ true };
 	bool totalRestart{ false };
 	bool fruitEaten{ false };
-	bool threeMinsPassed{ false };
 
 	float pSpeed{ PACMAN_SPEED };
 	float gSpeed{ GHOST_SPEED };
@@ -347,4 +346,3 @@ void PacmanAISwitch(float time);
 void TotalRestart();
 void AllVisible();
 void AllInvisible();
-void SilenceControl();
