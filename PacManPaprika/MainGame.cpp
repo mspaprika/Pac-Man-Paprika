@@ -18,7 +18,8 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 
 	CreateTiles();
 	CreateGameObjects();
-	Play::PlayAudio(SND_SILENCE);
+	//Play::PlayAudio(SND_SILENCE);
+	Play::StartAudioLoop(SND_SILENCE);
 
 	if (gState.sound) Play::PlayAudio(SND_PAC_INTRO);
 }
@@ -28,7 +29,7 @@ bool MainGameUpdate( float elapsedTime )
 {
 	gState.time += elapsedTime;
 
-	SilenceControl();
+	//SilenceControl();
 	PacmanAISwitch(elapsedTime);
 	GhostScatterControl();
 	UpdateGameStates();
@@ -204,6 +205,8 @@ void Draw()
 	// Draw Tile Map //
 	//for (Tile& tile : vTiles)
 		//Play::DrawRect({ tile.pos.x - TILE_SIZE / 2, tile.pos.y - TILE_SIZE / 2 }, { tile.pos.x + TILE_SIZE / 2, tile.pos.y + TILE_SIZE / 2 }, Play::cWhite);
+	Play::DrawSpriteRotated(SPR_PEPPER, { DISPLAY_WIDTH / 2 + 140, OFFSET_BOTTOM }, 0, 0.f, 2.f);
+	DrawGameStats();
 
 	if (gState.visible) DrawGameObjects(TYPE_POWER);
 	if (gState.visible) DrawGameObjects(TYPE_DOT);
@@ -217,7 +220,6 @@ void Draw()
 	if (gState.lives > 1) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 120, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
 	if (gState.lives > 0) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 160, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
 
-	Play::DrawSpriteRotated(SPR_PEPPER, { DISPLAY_WIDTH / 2 + 140, OFFSET_BOTTOM }, 0, 0.f, 2.f);
 
 	//Play::DrawCircle(pacman.pos, 15, Play::cWhite);
 	//Play::DrawCircle(ghost.pos, 15, Play::cRed);
@@ -226,7 +228,6 @@ void Draw()
 	//GameObject& objGhost = Play::GetGameObject(vGhosts[0].id);
 	//Play::DrawCircle(objGhost.pos, 10, Play::cWhite);
 
-	DrawGameStats();
 
 	Play::PresentDrawingBuffer();
 }
@@ -241,10 +242,17 @@ void DrawGameStats()
 {
 	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
 	Play::DrawFontText( "64", "LEVEL: " + std::to_string(gState.level), { BOARD_LIM_RIGHT - 20, 30 }, Play::RIGHT );
+	if (gState.vulnerable) 
+	{
+		Play::DrawFontText("64", std::to_string((int)gState.timeLeft), { BOARD_LIM_LEFT + 50, DISPLAY_HEIGHT / 2 + 50 }, Play::RIGHT);
+		Play::DrawFontText("64", std::to_string((int)gState.timeLeft), { BOARD_LIM_RIGHT - 50, DISPLAY_HEIGHT / 2 + 50 }, Play::RIGHT);
+		Play::DrawFontText("64", std::to_string((int)gState.timeLeft), { BOARD_LIM_LEFT + 50, DISPLAY_HEIGHT / 2 - 70 }, Play::RIGHT);
+		Play::DrawFontText("64", std::to_string((int)gState.timeLeft), { BOARD_LIM_RIGHT - 50, DISPLAY_HEIGHT / 2 - 70 }, Play::RIGHT);
+	}
 
-	Play::DrawFontText("64", "time: " + std::to_string((int)gState.time), { DISPLAY_WIDTH - 150, 50 }, Play::CENTRE);
+	//Play::DrawFontText("64", "time: " + std::to_string((int)gState.time), { DISPLAY_WIDTH - 150, 50 }, Play::CENTRE);
 	//Play::DrawFontText( "64", "g state: " + std::to_string(gState.state), { DISPLAY_WIDTH - 150, 100 }, Play::CENTRE );
-	//Play::DrawFontText( "64", "direction: " + std::to_string(pacman.nextDir), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
+	Play::DrawFontText( "64", "pacman: " + std::to_string(gState.pState), { DISPLAY_WIDTH - 150, 150 }, Play::CENTRE );
 	//Play::DrawFontText( "64", "state: " + std::to_string(vGhosts[0].state), { DISPLAY_WIDTH - 150, 200 }, Play::CENTRE );
 	//Play::DrawFontText("64", "dots: " + std::to_string(gState.maxDots), { DISPLAY_WIDTH - 150, 250 }, Play::CENTRE);
 
@@ -494,8 +502,10 @@ void UpdatePower()
 	if (gState.vulnerable)
 	{
 		gState.powerTimer += 1.0f / 60.0f;
+		gState.timeLeft -= 1.0f / 60.0f;
 
-		if (gState.powerTimer > 10.0f) gState.vulnerable = false;		
+		if (gState.powerTimer > GHOST_VULNERABLE_DURATION) gState.vulnerable = false;
+		if (!gState.vulnerable) gState.timeLeft = 0.0f;
 	}
 
 	std::vector <int> vPower = Play::CollectGameObjectIDsByType(TYPE_POWER);
@@ -509,6 +519,7 @@ void UpdatePower()
 			gState.score += 50;
 			gState.vulnerable = true;
 			gState.powerTimer = 0.0f;
+			gState.timeLeft = GHOST_VULNERABLE_DURATION;
 
 			for (Ghost& ghost : vGhosts)
 			{
