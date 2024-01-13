@@ -2,8 +2,10 @@
 
 #include "Play.h"
 
-constexpr int DISPLAY_WIDTH = 1280;
-constexpr int DISPLAY_HEIGHT = 720;
+//constexpr int DISPLAY_WIDTH = 1280;
+constexpr int DISPLAY_WIDTH = 1600;
+//constexpr int DISPLAY_HEIGHT = 720;
+constexpr int DISPLAY_HEIGHT = 900;
 constexpr int DISPLAY_SCALE = 1;
 
 // Sprites
@@ -95,8 +97,8 @@ const int INKY_SCATTER_POS = { 867 };
 // Board
 const int TILE_SIZE = 20;
 const int HALF_TILE = TILE_SIZE / 2;
-const int BOARD_OFFSET_X = 370;
-const int BOARD_OFFSET_Y = 70;
+const int BOARD_OFFSET_X = (DISPLAY_WIDTH / 2) - 270;
+const int BOARD_OFFSET_Y = (DISPLAY_HEIGHT / 2) - 290;
 
 
 const Vector2D BOARD_SIZE = { 28, 31 };
@@ -106,7 +108,7 @@ const int BOARD_LIM_RIGHT = BOARD_OFFSET_X + ( BOARD_SIZE.x * TILE_SIZE );
 
 // other
 const int FRUIT_POS = { 490 };
-const int OFFSET_BOTTOM = 30;
+const int OFFSET_BOTTOM = DISPLAY_HEIGHT / 2 - 330;
 
 const int TOTAL_LIVES = { 5 };
 const float GHOST_SPEED_INCREASE = { 0.5f };	
