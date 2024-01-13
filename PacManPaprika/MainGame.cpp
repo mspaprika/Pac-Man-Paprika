@@ -209,6 +209,7 @@ void Draw()
 	// Draw Tile Map //
 	//for (Tile& tile : vTiles)
 		//Play::DrawRect({ tile.pos.x - TILE_SIZE / 2, tile.pos.y - TILE_SIZE / 2 }, { tile.pos.x + TILE_SIZE / 2, tile.pos.y + TILE_SIZE / 2 }, Play::cWhite);
+
 	Play::DrawSpriteRotated(SPR_PEPPER, { DISPLAY_WIDTH / 2 + 140, OFFSET_BOTTOM }, 0, 0.f, 2.f);
 	DrawGameStats();
 
@@ -223,7 +224,6 @@ void Draw()
 	if (gState.lives > 2) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 80, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
 	if (gState.lives > 1) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 120, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
 	if (gState.lives > 0) Play::DrawSpriteRotated(SPR_PACMAN, { BOARD_OFFSET_X + 160, OFFSET_BOTTOM }, 0, 3.14f, 0.9f);
-
 
 	//Play::DrawCircle(pacman.pos, 15, Play::cWhite);
 	//Play::DrawCircle(ghost.pos, 15, Play::cRed);
@@ -244,8 +244,9 @@ void DrawGameObjects(int TYPE)
 
 void DrawGameStats()
 {
-	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, 30 }, Play::CENTRE );
-	Play::DrawFontText( "64", "LEVEL: " + std::to_string(gState.level), { BOARD_LIM_RIGHT - 20, 30 }, Play::RIGHT );
+	Play::DrawFontText( "64", "SCORE: " + std::to_string(gState.score), { DISPLAY_WIDTH / 2, OFFSET_BOTTOM }, Play::CENTRE );
+	Play::DrawFontText( "64", "LEVEL: " + std::to_string(gState.level), { BOARD_LIM_RIGHT - 20, OFFSET_BOTTOM }, Play::RIGHT );
+
 	if (gState.vulnerable) 
 	{
 		Play::DrawFontText("64", std::to_string((int)gState.timeLeft), { BOARD_LIM_LEFT + 50, DISPLAY_HEIGHT / 2 + 50 }, Play::RIGHT);
@@ -515,7 +516,7 @@ void UpdatePower()
 
 			for (Ghost& ghost : vGhosts)
 			{
-				if (ghost.activated && ghost.exited)
+				if (ghost.activated && ghost.exited && ghost.state != GHOST_DEAD)
 				{
 					ReverseDirection(ghost);
 					ghost.targetTile = Play::RandomRoll(vTiles.size() - 100);
